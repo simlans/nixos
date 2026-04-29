@@ -4,6 +4,18 @@ Declarative NixOS configuration for `battlestation` (AMD Ryzen 7 9800X3D, Radeon
 
 ## First-time install
 
+### BIOS prerequisites
+
+Before booting the installer:
+
+1. Disable Secure Boot (it gets re-enabled at the end after key enrollment).
+2. Put Secure Boot into **Setup Mode** — on ASRock B850: *Security → Secure Boot → Key Management → Reset to Setup Mode* (or *Clear Secure Boot Keys*). Without Setup Mode the auto-enrollment on first boot silently does nothing.
+3. Confirm UEFI mode (no CSM / Legacy boot).
+
+If Windows is already installed on the second NVMe with **BitLocker active**: have the recovery key ready (Microsoft account → Devices → BitLocker recovery keys). Clearing the firmware keys changes PCR 7, so the next Windows boot prompts for recovery once.
+
+### Installation
+
 On the target machine, booted from the **NixOS 25.11 minimal USB**. The second NVMe (Corsair MP600) is removed during installation, so the Samsung 970 EVO Plus is guaranteed to be `/dev/nvme0n1`.
 
 ```bash
@@ -37,6 +49,31 @@ passwd lansing
 
 Switch back with Ctrl+Alt+F1 to `tuigreet` and log in as `lansing`.
 
+### Finish Secure Boot setup
+
+The first boot ran two systemd services from the Lanzaboote module:
+
+- `generate-sb-keys.service` — created PK/KEK/db under `/etc/secureboot/keys`.
+- `prepare-sb-auto-enroll.service` — exported signed `.auth` files to `/boot/loader/keys/auto/` (Microsoft keys included by default) and re-signed the ESP artifacts.
+
+Verify before turning Secure Boot on:
+
+```bash
+sudo sbctl verify          # all entries under /boot must report "signed"
+bootctl status             # expect: Secure Boot: disabled (setup)
+```
+
+Reboot. systemd-boot now sees the auto-enrollment payload in `/boot/loader/keys/auto/` and writes PK/KEK/db into the firmware autonomously (this only works because Setup Mode is active).
+
+After the next boot, enter the BIOS once more and set **Secure Boot → Enabled**, save, exit.
+
+```bash
+bootctl status             # expect: Secure Boot: enabled (user)
+sudo sbctl status          # Setup Mode: Disabled, Secure Boot: Enabled
+```
+
+Boot into Windows via the BIOS boot picker (F11) once. With BitLocker active, expect a one-time recovery prompt — type the recovery key, BitLocker re-binds to the new PCR 7 value, future boots are silent.
+
 ## Subsequent rebuilds
 
 ```bash
@@ -54,7 +91,7 @@ hosts/battlestation/
   hardware-configuration.nix             # AMD CPU, NVMe, AMD GPU (hand-tuned)
 modules/
   system/base.nix                        # locale, time, nix settings, packages
-  system/boot.nix                        # systemd-boot, linuxPackages_latest, amd_pstate
+  system/boot.nix                        # Lanzaboote (Secure Boot), linuxPackages_latest, amd_pstate
   system/network.nix                     # NetworkManager, bluetooth, firewall
   system/users.nix                       # user lansing, openssh
   desktop/niri.nix                       # Niri, greetd+tuigreet, PipeWire, fonts

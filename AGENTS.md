@@ -6,6 +6,16 @@ Context for AI coding agents (Claude Code, Cursor, Codex, etc.) working on this 
 
 **All documentation in this repo (README, AGENTS, code comments, commit messages) is written in English.** Don't switch to German even if the user prompts in German — keep the artifacts English so the public repo stays internationally readable.
 
+## Documentation upkeep
+
+**Every change that affects how the system is set up, installed, configured, recovered, or operated MUST also update the docs in the same change.** Specifically:
+
+- New install step, BIOS/firmware prerequisite, or post-install action → update `README.md` (the user-facing first-time install / operation flow).
+- New module, convention, pitfall, or stack component → update `AGENTS.md` (this file).
+- Even small additions (new flake input, new system package with non-obvious purpose) deserve at least a one-line mention in the layout or stack list.
+
+Don't wait to be asked. If you change behaviour and skip the doc update, the change is incomplete.
+
 ## What is this?
 
 Declarative NixOS configuration for the workstation `battlestation`. A single flake describing this one host — no multi-host setup. Disk layout (LUKS + ext4), system modules, and home-manager configuration all live in the repo.
@@ -15,6 +25,7 @@ Declarative NixOS configuration for the workstation `battlestation`. A single fl
 - **NixOS 25.11** (`nixos-25.11` channel, no unstable)
 - **Flakes** + `nix-command` (experimental, enabled in the config)
 - **`disko`** for declarative partitioning (LUKS + ext4 on NVMe)
+- **`lanzaboote`** for UEFI Secure Boot (replaces `systemd-boot`, signs kernel + initrd)
 - **`home-manager`** as a NixOS module (not standalone)
 - **Niri** (Wayland tiler) via `programs.niri.enable`
 - **`linuxPackages_latest`** instead of the channel default (RDNA 4 needs ≥ 6.14)
@@ -97,6 +108,7 @@ sudo nixos-rebuild test   --flake .#battlestation       # activates without sett
 - **Don't** put `fileSystems."/" = …;` (or similar) into `hardware-configuration.nix` — disko provides those. Otherwise the flake fails to evaluate or you get duplicate mountpoints.
 - **`programs.niri.package`** shouldn't be overridden without a reason — the nixpkgs module handles Wayland/polkit/portal wiring.
 - **`boot.kernelPackages = pkgs.linuxPackages_latest;`** is intentional; reverting it to the channel default risks black-screen on the RX 9070 XT (RDNA 4 < kernel 6.14 is a gamble).
+- **`boot.lanzaboote.enable = true;`** replaces `systemd-boot` — don't re-enable `boot.loader.systemd-boot.enable`, the two are mutually exclusive. Lanzaboote provides its own systemd-boot stub. `autoGenerateKeys` + `autoEnrollKeys` (with default `includeMicrosoftKeys = true`) handle key provisioning on first boot; the firmware must be in **Setup Mode** at that point or auto-enrollment silently does nothing.
 - **`users.mutableUsers = true;`** is intentional — the user password is set with `passwd` after first boot, not in the repo. Don't add `initialPassword`.
 - **`home-manager` runs as a NixOS module** (`useGlobalPkgs = true`, `useUserPackages = true`). Don't mix in standalone-mode patterns.
 - **Unfree packages** (Discord, 1Password, Steam) require `nixpkgs.config.allowUnfree = true;` (set in `modules/system/base.nix`).

@@ -13,15 +13,21 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    lanzaboote = {
+      url = "github:nix-community/lanzaboote/v1.0.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, home-manager, disko, ... }: {
+  outputs = { self, nixpkgs, home-manager, disko, lanzaboote, ... }: {
     nixosConfigurations.battlestation = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = { inherit self; };
       modules = [
         disko.nixosModules.disko
         ./disko/battlestation.nix
+        lanzaboote.nixosModules.lanzaboote
         ./hosts/battlestation
         home-manager.nixosModules.home-manager
         {

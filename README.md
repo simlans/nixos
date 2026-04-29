@@ -20,7 +20,7 @@ On the target machine, booted from the **NixOS 25.11 minimal USB**. The second N
 
 ```bash
 # Keyboard layout (optional)
-loadkeys de
+sudo loadkeys de
 
 # Network: wired to the router → DHCP lease from 10.76.1.x comes up automatically
 ping -c 1 nixos.org
@@ -28,8 +28,13 @@ ping -c 1 nixos.org
 # Confirm disk path
 lsblk
 
-# One-shot: partition + install from the remote flake
-sudo nix --experimental-features 'nix-command flakes' run \
+# One-shot: partition + install from the remote flake.
+# NIX_CONFIG enables flakes for both the outer `nix` call and the nested nix
+# subprocesses spawned by disko-install. Editing /etc/nix/nix.conf does not work:
+# on NixOS it is a read-only symlink into the immutable /nix/store. Passing only
+# `--experimental-features` to nix would leave the children failing with
+# "experimental Nix feature 'nix-command' is disabled".
+sudo NIX_CONFIG="experimental-features = nix-command flakes" nix run \
   github:nix-community/disko/latest#disko-install -- \
   --flake github:simlans/nixos-workstation#battlestation \
   --disk main /dev/nvme0n1 \
@@ -117,7 +122,7 @@ nix-shell -p git
 git clone https://github.com/simlans/nixos-workstation /tmp/cfg
 cd /tmp/cfg
 # … edit …
-sudo nix --experimental-features 'nix-command flakes' run \
+sudo NIX_CONFIG="experimental-features = nix-command flakes" nix run \
   github:nix-community/disko/latest -- \
   --mode destroy,format,mount ./disko/battlestation.nix
 sudo nixos-install --flake .#battlestation

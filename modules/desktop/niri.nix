@@ -2,6 +2,11 @@
 {
   programs.niri.enable = true;
 
+  services.xserver.xkb = {
+    layout = "de";
+    variant = "";
+  };
+
   services.greetd = {
     enable = true;
     settings = {

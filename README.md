@@ -29,30 +29,41 @@ ping -c 1 nixos.org
 lsblk
 
 # One-shot: partition + install from the remote flake.
+#
 # NIX_CONFIG enables flakes for both the outer `nix` call and the nested nix
-# subprocesses spawned by disko-install. Editing /etc/nix/nix.conf does not work:
-# on NixOS it is a read-only symlink into the immutable /nix/store. Passing only
-# `--experimental-features` to nix would leave the children failing with
-# "experimental Nix feature 'nix-command' is disabled".
-sudo NIX_CONFIG="experimental-features = nix-command flakes" nix run \
+# subprocesses spawned by disko-install. Editing /etc/nix/nix.conf does not
+# work: on NixOS it is a read-only symlink into the immutable /nix/store.
+# Passing only `--experimental-features` would leave the children failing
+# with "experimental Nix feature 'nix-command' is disabled".
+#
+# `tarball-ttl = 0` plus `--refresh` force a fresh fetch of the flake
+# metadata. Without this, a previous install attempt that resolved this URL
+# can pin nix to a stale commit (e.g. one with a missing flake.lock entry),
+# and you get "cannot write modified lock file" until the cache expires.
+sudo NIX_CONFIG="experimental-features = nix-command flakes
+tarball-ttl = 0" nix --refresh run \
   github:nix-community/disko/latest#disko-install -- \
   --flake github:simlans/nixos-workstation#battlestation \
   --disk main /dev/nvme0n1 \
   --write-efi-boot-entries
-# → prompts for: LUKS passphrase, root password
+# → prompts only for the LUKS passphrase. disko-install runs
+#   `nixos-install --no-root-passwd`, so no interactive root prompt
+#   appears; user/root passwords come from the flake instead.
 ```
 
 `reboot`, pull the USB, type the LUKS passphrase → `tuigreet` comes up.
 
-### First login: set the user password
+### First login: change the initial password
 
-`tuigreet` only lists users that have a password set. On first boot switch to a TTY with Ctrl+Alt+F2 and log in as `root`:
+`users.lansing.initialPassword = "changeme"` (in `modules/system/users.nix`)
+seeds an initial password so `tuigreet` lists `lansing` and the account is
+loginable on first boot. Log in with `changeme` and immediately rotate it:
 
 ```bash
-passwd lansing
+passwd                     # set a real password for lansing
 ```
 
-Switch back with Ctrl+Alt+F1 to `tuigreet` and log in as `lansing`.
+Root stays without a password (`PermitRootLogin = "no"`, sudo via `wheel`).
 
 ### Finish Secure Boot setup
 

@@ -160,7 +160,7 @@ bootstrap:
    once; it prompts for the auth key and runs `tailscale up`:
    ```bash
    nix run .#tailscale-up                                                    # interactive prompt
-   op read 'op://nixos/tailscale-authkey/credential' | nix run .#tailscale-up  # piped
+   op read 'op://nixos/tailscale-nixos-authkey/credential' | nix run .#tailscale-up  # piped
    ```
    Tailscale persists the node identity under `/var/lib/tailscale`, so this is a
    one-shot per machine.

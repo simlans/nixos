@@ -45,7 +45,7 @@
 
       # `nix run .#tailscale-up` — bootstrap this node into the tailnet.
       # Reads the auth key either from a TTY prompt or from stdin, so both
-      # interactive use and `op read 'op://nixos/tailscale-authkey/credential'
+      # interactive use and `op read 'op://nixos/tailscale-nixos-authkey/credential'
       #   | nix run .#tailscale-up` work. Calls `sudo tailscale up` with
       # the standard --accept-dns --accept-routes flags. Single-shot:
       # tailscale persists the node identity under /var/lib/tailscale.

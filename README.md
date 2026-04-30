@@ -112,8 +112,9 @@ modules/
     base.nix                             # locale, time, nix settings, OS toolbox
     boot.nix                             # Lanzaboote (Secure Boot), linuxPackages_latest, amd_pstate
     network.nix                          # NetworkManager, bluetooth, firewall
-    users.nix                            # user lansing
+    users.nix                            # user lansing (incl. docker group)
     openssh.nix                          # SSH server + authorized keys
+    tailscale.nix                        # tailscaled (auth key bootstrapped post-install)
   desktop/
     niri.nix                             # Niri WM, greetd+tuigreet, xdg-portal
     fonts.nix                            # Noto / Fira / JetBrains Nerd Fonts
@@ -121,7 +122,7 @@ modules/
     tools.nix                            # alacritty, fuzzel, waybar, swaylock, mako, ...
   apps/                                  # firefox, onepassword (GUI+CLI), discord
   gaming/                                # steam (+ 32-bit graphics)
-  development/                           # claude-code
+  development/                           # claude-code, docker
 home/lansing/
   default.nix                            # Home Manager root: identity + imports
   cli.nix                                # ripgrep, fd, bat, eza, fzf, jq, yq, tree, htop, file
@@ -160,6 +161,14 @@ bootstrap:
    `signByDefault = true;`, and enable the matching `xdg.configFile."git/allowed_signers"`
    line below it. Rebuild. The private key never lands on disk — git signs through
    the 1Password GUI agent.
+
+4. **Tailscale** — the daemon is on but the node isn't joined. As root, once:
+   ```bash
+   tailscale up \
+     --auth-key="$(op read 'op://nixos/tailscale-authkey/credential')" \
+     --accept-dns --accept-routes
+   ```
+   Subsequent reboots and rebuilds keep the node identity (`/var/lib/tailscale`).
 
 ## Hardware
 

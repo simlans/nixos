@@ -7,6 +7,7 @@
     ../../modules/system/network.nix
     ../../modules/system/users.nix
     ../../modules/system/openssh.nix
+    ../../modules/system/tailscale.nix
     ../../modules/desktop/niri.nix
     ../../modules/desktop/fonts.nix
     ../../modules/desktop/audio.nix
@@ -16,6 +17,7 @@
     ../../modules/apps/discord.nix
     ../../modules/gaming/steam.nix
     ../../modules/development/claude-code.nix
+    ../../modules/development/docker.nix
   ];
 
   networking.hostName = "battlestation";

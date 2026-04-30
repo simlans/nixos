@@ -43,8 +43,9 @@ modules/
     base.nix                               # locale, time, nix.settings, GC, zramSwap, allowUnfree
     boot.nix                               # lanzaboote, linuxPackages_latest, amd_pstate
     network.nix                            # NetworkManager, bluetooth, firewall
-    users.nix                              # user lansing + initialPassword + groups
+    users.nix                              # user lansing + initialPassword + groups (incl. docker)
     openssh.nix                            # services.openssh + authorized keys
+    tailscale.nix                          # tailscaled (auth key bootstrapped manually)
   desktop/
     niri.nix                               # programs.niri + greetd + xdg.portal + xkb
     fonts.nix                              # Noto / Fira / JetBrains Nerd Fonts
@@ -58,6 +59,7 @@ modules/
     steam.nix                              # programs.steam + 32-bit graphics
   development/
     claude-code.nix                        # claude-code (system package)
+    docker.nix                             # virtualisation.docker (lansing in users.nix's groups)
 home/lansing/
   default.nix                              # home-manager root: identity + imports
   cli.nix                                  # ripgrep, fd, bat, eza, fzf, jq, yq, tree, htop, file
@@ -154,6 +156,8 @@ sudo nixos-rebuild test   --flake .#battlestation       # activates without sett
 - **Git commit signing** in `home/lansing/git.nix` is shipped *off* — the public ed25519 key is a placeholder. Filling in the real key (and flipping `signByDefault = true`) is part of the post-install bootstrap, not a build-time step. Don't try to read it from 1Password at evaluation time; the `op` CLI is only available on the activated system.
 - **`programs.tmux.enable` is NOT used** — the upstream gpakosz/.tmux config sources `~/.tmux.conf.local` from `$HOME`, so we drop both files via `home.file` instead and rely on `pkgs.tmux` for the binary. Switching to `programs.tmux.enable` would generate a competing `~/.tmux.conf` and break the override mechanism.
 - **`op-cache`** is a prebuilt x86_64-linux binary from `simlans/direnv-libs`. The flake evaluates fine on aarch64-darwin (Mac) because nothing forces a build; the build only runs on the battlestation. Bumping the version means updating both the URL and the SRI hash in `home/lansing/onepassword.nix`.
+- **Tailscale auth key is *not* in the flake** — `services.tailscale.enable = true` only starts the daemon. The first `tailscale up --auth-key=…` is a manual post-install step (the key comes from 1Password vault `nixos`, item `tailscale-authkey`). After that, `/var/lib/tailscale` persists the node identity across rebuilds.
+- **Docker group membership lives in `modules/system/users.nix`**, not in `modules/development/docker.nix`. Keeping all of `lansing`'s extraGroups in one place avoids "is the user in the right groups?" hunting across files.
 
 ## Hardware (quick ref)
 

@@ -128,7 +128,8 @@ home/lansing/
   cli.nix                                # ripgrep, fd, bat, eza, fzf, jq, yq, tree, htop, file
   onepassword.nix                        # op-cache + IdentityAgent → 1P GUI agent
   shell/
-    zsh.nix                              # zsh + oh-my-zsh + plugins, aliases, history, 1P signin
+    zsh.nix                              # zsh + oh-my-zsh + Powerlevel10k, aliases, history, 1P signin, auto-tmux
+    p10k/p10k.zsh                        # Powerlevel10k config (lean, kubecontext-aware right prompt)
     tmux/                                # tmux + pinned gpakosz/.tmux + tmux.conf.local
     direnv.nix                           # direnv + nix-direnv
   development/

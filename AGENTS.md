@@ -65,7 +65,8 @@ home/lansing/
   cli.nix                                  # ripgrep, fd, bat, eza, fzf, jq, yq, tree, htop, file
   onepassword.nix                          # op-cache binary + IdentityAgent → 1P GUI agent
   shell/
-    zsh.nix                                # zsh + oh-my-zsh + plugins + aliases + 1P signin
+    zsh.nix                                # zsh + oh-my-zsh + p10k + aliases + 1P signin + Alacritty auto-tmux
+    p10k/p10k.zsh                          # Powerlevel10k wizard output (lean, kubecontext, 1-line)
     tmux/                                  # tmux + pinned gpakosz/.tmux + tmux.conf.local
     direnv.nix                             # direnv + nix-direnv
   development/
@@ -133,7 +134,7 @@ Afterwards you MUST verify: `fileSystems`, `swapDevices`, `boot.initrd.luks.*` m
 
 ## Validation
 
-All commands run locally (Mac with Nix or directly on the battlestation):
+All commands run locally (any host with Nix, or directly on the battlestation):
 
 ```bash
 nix flake check --no-build                                            # outputs valid?
@@ -160,9 +161,10 @@ sudo nixos-rebuild test   --flake .#battlestation       # activates without sett
 - **Unfree packages** (Discord, 1Password, Steam, Claude Code) require `nixpkgs.config.allowUnfree = true;` (set in `modules/system/base.nix`).
 - **Git commit signing is *on* by default** with the public ed25519 key inlined in `home/lansing/git.nix`. Public keys are not secrets — committing them is the standard NixOS pattern. The matching private key never enters the repo; it lives in 1Password and gets handed to git through `~/.1password/agent.sock` at runtime. If the 1P GUI agent isn't running, signed commits simply fail until it is.
 - **`programs.tmux.enable` is NOT used** — the upstream gpakosz/.tmux config sources `~/.tmux.conf.local` from `$HOME`, so we drop both files via `home.file` instead and rely on `pkgs.tmux` for the binary. Switching to `programs.tmux.enable` would generate a competing `~/.tmux.conf` and break the override mechanism.
-- **`op-cache`** is a prebuilt x86_64-linux binary from `simlans/direnv-libs`. The flake evaluates fine on aarch64-darwin (Mac) because nothing forces a build; the build only runs on the battlestation. Bumping the version means updating both the URL and the SRI hash in `home/lansing/onepassword.nix`.
+- **`op-cache`** is a prebuilt x86_64-linux binary from `simlans/direnv-libs`. The flake evaluates fine on aarch64-darwin because nothing forces a build; the build only runs on the battlestation. Bumping the version means updating both the URL and the SRI hash in `home/lansing/onepassword.nix`.
 - **Tailscale auth key is *not* in the flake** — `services.tailscale.enable = true` only starts the daemon. First-boot bootstrap goes through the `nix run .#tailscale-up` flake app (defined in `flake.nix`); it prompts for the key on a TTY or reads it from stdin so `op read 'op://nixos/tailscale-nixos-authkey/credential' | nix run .#tailscale-up` works. After the join, `/var/lib/tailscale` persists the node identity and the app isn't needed again.
 - **Docker group membership lives in `modules/system/users.nix`**, not in `modules/development/docker.nix`. Keeping all of `lansing`'s extraGroups in one place avoids "is the user in the right groups?" hunting across files.
+- **Auto-tmux trigger keys off `$ALACRITTY_WINDOW_ID`** in `home/lansing/shell/zsh.nix`. If the daily-driver terminal changes (e.g. to foot or Ghostty), update that env-var check — otherwise zsh stops auto-attaching to the `main` session. Powerlevel10k inherits the JetBrains Nerd Font from `modules/desktop/fonts.nix`; without a Nerd Font the right-prompt icons render as tofu.
 
 ## Hardware (quick ref)
 

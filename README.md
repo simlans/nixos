@@ -22,7 +22,7 @@ On the target machine, booted from the **NixOS 25.11 minimal USB**. The second N
 # Keyboard layout (optional)
 sudo loadkeys de
 
-# Network: wired to the router → DHCP lease from 10.76.1.x comes up automatically
+# Network: wired to the router → DHCP lease from your LAN comes up automatically
 ping -c 1 nixos.org
 
 # Confirm disk path
@@ -48,22 +48,16 @@ tarball-ttl = 0" nix --refresh run \
   --write-efi-boot-entries
 # → prompts only for the LUKS passphrase. disko-install runs
 #   `nixos-install --no-root-passwd`, so no interactive root prompt
-#   appears; user/root passwords come from the flake instead.
+#   appears. The flake intentionally has no initialPassword/hashedPassword,
+#   so the user account is created locked — set a password before the first
+#   reboot via nixos-enter (the new system stays mounted at /mnt after
+#   disko-install exits):
+sudo nixos-enter --root /mnt -c 'passwd lansing'
 ```
 
-`reboot`, pull the USB, type the LUKS passphrase → `tuigreet` comes up.
-
-### First login: change the initial password
-
-`users.lansing.initialPassword = "changeme"` (in `modules/system/users.nix`)
-seeds an initial password so `tuigreet` lists `lansing` and the account is
-loginable on first boot. Log in with `changeme` and immediately rotate it:
-
-```bash
-passwd                     # set a real password for lansing
-```
-
-Root stays without a password (`PermitRootLogin = "no"`, sudo via `wheel`).
+`reboot`, pull the USB, type the LUKS passphrase → `tuigreet` comes up. Log
+in as `lansing` with the password just set. Root stays without a password
+(`PermitRootLogin = "no"`, sudo via `wheel`).
 
 ### Finish Secure Boot setup
 
@@ -141,8 +135,7 @@ home/lansing/
 
 ## First-time setup after the install
 
-Once the system boots into Niri and `passwd` has been changed, finish the per-user
-bootstrap:
+Once the system boots into Niri, finish the per-user bootstrap:
 
 1. **1Password GUI** — open the app, sign in to the personal account, then go to
    *Settings → Developer* and enable **Use the SSH agent** (writes

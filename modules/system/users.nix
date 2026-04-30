@@ -6,13 +6,10 @@
   users.users.lansing = {
     isNormalUser = true;
     description = "lansing";
-    # disko-install runs nixos-install with --no-root-passwd, so the install
-    # never prompts for a password. Without an initialPassword neither root
-    # nor lansing get a hash in /etc/shadow, both accounts are locked, and
-    # the first login is impossible. Plaintext is acceptable here because
-    # this is a one-shot bootstrap value — change it with `passwd` on first
-    # login.
-    initialPassword = "changeme";
+    # No initialPassword: the bootstrap password is set via
+    # `nixos-enter --root /mnt -c 'passwd lansing'` after disko-install
+    # finishes and before the first reboot, so no plaintext or hash from
+    # this repo ever lands in the world-readable Nix store.
     extraGroups = [
       "wheel"
       "networkmanager"

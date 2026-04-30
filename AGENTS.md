@@ -43,7 +43,7 @@ modules/
     base.nix                               # locale, time, nix.settings, GC, zramSwap, allowUnfree
     boot.nix                               # lanzaboote, linuxPackages_latest, amd_pstate
     network.nix                            # NetworkManager, bluetooth, firewall
-    users.nix                              # user lansing + initialPassword + groups (incl. docker)
+    users.nix                              # user lansing + groups (incl. docker); password set via nixos-enter at install
     openssh.nix                            # services.openssh + authorized keys
     tailscale.nix                          # tailscaled (auth key bootstrapped manually)
   desktop/
@@ -156,7 +156,7 @@ sudo nixos-rebuild test   --flake .#battlestation       # activates without sett
 - **`programs.niri.package`** shouldn't be overridden without a reason — the nixpkgs module handles Wayland/polkit/portal wiring.
 - **`boot.kernelPackages = pkgs.linuxPackages_latest;`** is intentional; reverting it to the channel default risks black-screen on the RX 9070 XT (RDNA 4 < kernel 6.14 is a gamble).
 - **`boot.lanzaboote.enable = true;`** replaces `systemd-boot` — don't re-enable `boot.loader.systemd-boot.enable`, the two are mutually exclusive. Lanzaboote provides its own systemd-boot stub. `autoGenerateKeys` + `autoEnrollKeys` (with default `includeMicrosoftKeys = true`) handle key provisioning on first boot; the firmware must be in **Setup Mode** at that point or auto-enrollment silently does nothing.
-- **`users.mutableUsers = true;`** is intentional — the user password is set with `passwd` after first boot, not in the repo. Don't add `initialPassword`.
+- **`users.mutableUsers = true;`** is intentional — the user password is set during install via `sudo nixos-enter --root /mnt -c 'passwd lansing'` (after `disko-install`, before reboot), not from the repo. Don't add `initialPassword` or `hashedPassword`: both land in the world-readable Nix store.
 - **`home-manager` runs as a NixOS module** (`useGlobalPkgs = true`, `useUserPackages = true`). Don't mix in standalone-mode patterns.
 - **Unfree packages** (Discord, 1Password, Steam, Claude Code) require `nixpkgs.config.allowUnfree = true;` (set in `modules/system/base.nix`).
 - **Git commit signing is *on* by default** with the public ed25519 key inlined in `home/lansing/git.nix`. Public keys are not secrets — committing them is the standard NixOS pattern. The matching private key never enters the repo; it lives in 1Password and gets handed to git through `~/.1password/agent.sock` at runtime. If the 1P GUI agent isn't running, signed commits simply fail until it is.

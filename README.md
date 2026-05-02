@@ -126,7 +126,7 @@ modules/
     tools.nix                            # alacritty, fuzzel, waybar, swaylock, mako, ...
   apps/                                  # firefox (+ 1P extension), onepassword (GUI+CLI), discord
   gaming/                                # steam (+ 32-bit graphics)
-  development/                           # claude-code, docker
+  development/                           # claude-code (unstable), docker
 home/lansing/
   default.nix                            # Home Manager root: identity + imports
   cli.nix                                # ripgrep, fd, bat, eza, fzf, jq, yq, tree, htop, file

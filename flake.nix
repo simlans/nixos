@@ -4,6 +4,11 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
 
+    # Bleeding-edge channel used only for fast-moving packages where the
+    # 25.11 release lags too far behind upstream (currently: claude-code).
+    # Pull from this sparingly and explicitly per package.
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+
     home-manager = {
       url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -20,7 +25,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, disko, lanzaboote, ... }:
+  outputs = inputs@{ self, nixpkgs, home-manager, disko, lanzaboote, ... }:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
@@ -28,7 +33,7 @@
     {
       nixosConfigurations.battlestation = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit self; };
+        specialArgs = { inherit self inputs; };
         modules = [
           disko.nixosModules.disko
           ./disko/battlestation.nix

@@ -51,7 +51,7 @@ modules/
     niri.nix                               # programs.niri + greetd + xdg.portal + xkb
     fonts.nix                              # Noto / Fira / JetBrains Nerd Fonts
     audio.nix                              # PipeWire + rtkit
-    tools.nix                              # alacritty, fuzzel, waybar, swaylock, mako, ...
+    tools.nix                              # fuzzel, waybar, mako, ...
     keyring.nix                            # gnome-keyring (Secret Service) + PAM auto-unlock + passwd sync
   apps/
     firefox.nix                            # programs.firefox + 1P extension via policy

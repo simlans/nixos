@@ -133,7 +133,7 @@ modules/
     niri.nix                             # Niri WM, greetd+tuigreet, xdg-portal
     fonts.nix                            # Noto / Fira / JetBrains Nerd Fonts
     audio.nix                            # PipeWire + rtkit
-    tools.nix                            # alacritty, fuzzel, waybar, swaylock, mako, ...
+    tools.nix                            # fuzzel, waybar, mako, ...
   apps/                                  # firefox (+ 1P extension), onepassword (GUI+CLI), discord
   gaming/                                # steam (+ 32-bit graphics)
   development/                           # claude-code (unstable), docker

@@ -6,5 +6,6 @@
     ./golang.nix
     ./kubernetes
     ./neovim.nix
+    ./vscode.nix
   ];
 }

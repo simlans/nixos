@@ -23,6 +23,14 @@
       url = "github:nix-community/lanzaboote/v1.0.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Marketplace mirror for VSCode extensions — gives access to every
+    # extension on the Visual Studio Marketplace and Open VSX, not just
+    # the ~200 curated ones in nixpkgs `vscode-extensions`.
+    nix-vscode-extensions = {
+      url = "github:nix-community/nix-vscode-extensions";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs@{ self, nixpkgs, home-manager, disko, lanzaboote, ... }:
@@ -43,6 +51,7 @@
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
+            home-manager.extraSpecialArgs = { inherit inputs; };
             home-manager.users.lansing = import ./home/lansing;
           }
         ];

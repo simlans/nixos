@@ -15,6 +15,8 @@ let
 
     sourceRoot = "op-cache-x86_64-unknown-linux-gnu";
     nativeBuildInputs = [ pkgs.autoPatchelfHook ];
+    # The Rust binary dynamically links against libgcc_s.so.1.
+    buildInputs = [ pkgs.stdenv.cc.cc.lib ];
     dontBuild = true;
 
     installPhase = ''

@@ -19,6 +19,7 @@
     ../../modules/gaming/steam.nix
     ../../modules/development/claude-code.nix
     ../../modules/development/docker.nix
+    ../../modules/development/vscode.nix
   ];
 
   networking.hostName = "battlestation";

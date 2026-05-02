@@ -1,17 +1,14 @@
-{ pkgs, inputs, ... }:
-let
-  # Pulls every extension from the Visual Studio Marketplace via the
-  # nix-vscode-extensions flake input. Names are lowercased
-  # `publisher.name`, matching the marketplace URL slug.
-  marketplace =
-    inputs.nix-vscode-extensions.extensions.${pkgs.stdenv.hostPlatform.system}.vscode-marketplace;
-in
+{ pkgs, ... }:
 {
   programs.vscode = {
     enable = true;
     package = pkgs.vscode;
 
-    profiles.default.extensions = with marketplace; [
+    # `pkgs.vscode-marketplace` is provided by the
+    # `nix-vscode-extensions` overlay registered in
+    # `modules/development/vscode.nix`. Names are lowercased
+    # `publisher.name`, matching the marketplace URL slug.
+    profiles.default.extensions = with pkgs.vscode-marketplace; [
       anthropic.claude-code
       samuelcolvin.jinjahtml
       tumido.cron-explained

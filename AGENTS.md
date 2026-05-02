@@ -53,7 +53,7 @@ modules/
     tools.nix                              # alacritty, fuzzel, waybar, swaylock, mako, ...
     keyring.nix                            # gnome-keyring (Secret Service) + PAM auto-unlock + passwd sync
   apps/
-    firefox.nix                            # programs.firefox
+    firefox.nix                            # programs.firefox + 1P extension via policy
     onepassword.nix                        # programs._1password{,-gui}
     discord.nix                            # discord (system package)
   gaming/

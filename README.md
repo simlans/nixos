@@ -124,7 +124,7 @@ modules/
     fonts.nix                            # Noto / Fira / JetBrains Nerd Fonts
     audio.nix                            # PipeWire + rtkit
     tools.nix                            # alacritty, fuzzel, waybar, swaylock, mako, ...
-  apps/                                  # firefox, onepassword (GUI+CLI), discord
+  apps/                                  # firefox (+ 1P extension), onepassword (GUI+CLI), discord
   gaming/                                # steam (+ 32-bit graphics)
   development/                           # claude-code, docker
 home/lansing/

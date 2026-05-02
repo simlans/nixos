@@ -59,6 +59,16 @@ sudo nixos-enter --root /mnt -c 'passwd lansing'
 in as `lansing` with the password just set. Root stays without a password
 (`PermitRootLogin = "no"`, sudo via `wheel`).
 
+Set the **real** password at this `nixos-enter` step — not a placeholder you
+plan to rotate later. The login GNOME keyring (Secret Service backend used by
+1Password's libsecret bridge etc.) gets created on first login encrypted
+with whatever password is active then. PAM keeps it in sync on later
+interactive `passwd` runs (`modules/desktop/keyring.nix`), but root-driven
+changes (`sudo passwd`, `nixos-enter -c 'passwd …'`) cannot — root never sees
+the old keyring password. If you're stuck with a mismatched keyring, fix it
+once with `seahorse` (change keyring password) or remove
+`~/.local/share/keyrings/{login.keyring,user.keystore}` and let it regenerate.
+
 ### Finish Secure Boot setup
 
 The first boot ran two systemd services from the Lanzaboote module:

@@ -12,6 +12,7 @@
     ../../modules/desktop/fonts.nix
     ../../modules/desktop/audio.nix
     ../../modules/desktop/tools.nix
+    ../../modules/desktop/keyring.nix
     ../../modules/apps/firefox.nix
     ../../modules/apps/onepassword.nix
     ../../modules/apps/discord.nix

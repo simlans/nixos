@@ -51,6 +51,7 @@ modules/
     fonts.nix                              # Noto / Fira / JetBrains Nerd Fonts
     audio.nix                              # PipeWire + rtkit
     tools.nix                              # alacritty, fuzzel, waybar, swaylock, mako, ...
+    keyring.nix                            # gnome-keyring (Secret Service) + PAM auto-unlock + passwd sync
   apps/
     firefox.nix                            # programs.firefox
     onepassword.nix                        # programs._1password{,-gui}
@@ -165,6 +166,7 @@ sudo nixos-rebuild test   --flake .#battlestation       # activates without sett
 - **Tailscale auth key is *not* in the flake** — `services.tailscale.enable = true` only starts the daemon. First-boot bootstrap goes through the `nix run .#tailscale-up` flake app (defined in `flake.nix`); it prompts for the key on a TTY or reads it from stdin so `op read 'op://nixos/tailscale-nixos-authkey/credential' | nix run .#tailscale-up` works. After the join, `/var/lib/tailscale` persists the node identity and the app isn't needed again.
 - **Docker group membership lives in `modules/system/users.nix`**, not in `modules/development/docker.nix`. Keeping all of `lansing`'s extraGroups in one place avoids "is the user in the right groups?" hunting across files.
 - **Auto-tmux trigger keys off `$ALACRITTY_WINDOW_ID`** in `home/lansing/shell/zsh.nix`. If the daily-driver terminal changes (e.g. to foot or Ghostty), update that env-var check — otherwise zsh stops auto-attaching to the `main` session. Powerlevel10k inherits the JetBrains Nerd Font from `modules/desktop/fonts.nix`; without a Nerd Font the right-prompt icons render as tofu.
+- **GNOME Keyring is wired through PAM** in `modules/desktop/keyring.nix`. `services.gnome.gnome-keyring.enable = true` plus `security.pam.services.{login,greetd,passwd}.enableGnomeKeyring = true` keeps the login keyring synced with the user account on every interactive `passwd`. Caveat: root-driven password changes (`sudo passwd <user>`, `nixos-enter -c 'passwd …'`) still bypass the sync because root never holds the old keyring password — at install time that's fine (keyring doesn't exist yet), but if you want to rotate a placeholder *after* first login, do it as the user via plain `passwd`, not via `sudo`.
 - **Commit identity is forced via repo-local `.envrc`.** The author uses a parent `~/Documents/projects/.envrc` that exports `GIT_AUTHOR_*`/`GIT_COMMITTER_*` from 1Password (private name + email). Since this repo is published publicly, a nested `.envrc` at the repo root re-exports the GitHub no-reply identity (`simlans <55317770+simlans@users.noreply.github.com>`). The Git env-vars take precedence over `git config user.email`, so without direnv-allow on this directory commits fall back to the parent's private identity and leak into history. Run `direnv allow` once after cloning, and check `git var GIT_AUTHOR_IDENT` if commits start showing up with the wrong name.
 
 ## Hardware (quick ref)

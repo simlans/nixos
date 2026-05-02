@@ -2,6 +2,10 @@
 {
   programs.niri.enable = true;
 
+  # Wire PAM for swaylock so it can actually authenticate. The package and
+  # styling live in home-manager (home/lansing/desktop/swaylock.nix).
+  security.pam.services.swaylock = {};
+
   # Niri is pure Wayland; X11 apps (Steam, etc.) need rootless Xwayland via
   # xwayland-satellite. There is no NixOS module for it in 25.11, so wire it
   # up as a systemd user service tied to graphical-session.target.

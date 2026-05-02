@@ -4,7 +4,6 @@
     alacritty
     fuzzel
     waybar
-    swaylock
     mako
     wl-clipboard
     grim

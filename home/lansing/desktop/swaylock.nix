@@ -5,7 +5,7 @@
     package = pkgs.swaylock-effects;
     settings = {
       screenshots = true;
-      effect-blur = "7x5";
+      effect-blur = "20x3";
       effect-vignette = "0.5:0.5";
       clock = true;
       timestr = "%H:%M";

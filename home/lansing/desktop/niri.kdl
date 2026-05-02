@@ -270,6 +270,10 @@ layout {
 // This line starts waybar, a commonly used bar for Wayland compositors.
 spawn-at-startup "waybar"
 
+// Pick a random image from ~/Pictures/Wallpapers/ if any exist,
+// otherwise fall back to the nixos-artwork default baked in via niri.nix.
+spawn-sh-at-startup r#"img=$(find "$HOME/Pictures/Wallpapers" -maxdepth 1 -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) 2>/dev/null | shuf -n 1); if [ -n "$img" ]; then swaybg -i "$img" -m fill; else swaybg -i @WALLPAPER@ -m fill; fi"#
+
 // To run a shell command (with variables, pipes, etc.), use spawn-sh-at-startup:
 // spawn-sh-at-startup "qs -c ~/source/qs/MyAwesomeShell"
 

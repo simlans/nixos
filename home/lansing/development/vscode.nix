@@ -9,6 +9,16 @@ let
   };
 in
 {
+  # Electron's OSCrypt can't auto-pick a Secret Service backend under
+  # niri (XDG_CURRENT_DESKTOP=niri isn't on its known-desktops list), so
+  # VSCode falls back to "basic" text encryption and warns "An OS keyring
+  # couldn't be identified …". Forcing the libsecret backend routes it
+  # at the gnome-keyring daemon (D-Bus activation set up in
+  # modules/desktop/keyring.nix). See microsoft/vscode#187338.
+  home.file.".vscode/argv.json".text = builtins.toJSON {
+    "password-store" = "gnome-libsecret";
+  };
+
   programs.vscode = {
     enable = true;
     package = unstable.vscode;

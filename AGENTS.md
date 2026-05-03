@@ -48,7 +48,8 @@ modules/
     openssh.nix                            # services.openssh + authorized keys
     tailscale.nix                          # tailscaled (auth key bootstrapped manually)
   desktop/
-    niri.nix                               # programs.niri + greetd + xdg.portal + xkb
+    niri.nix                               # programs.niri + greetd + xdg.portal + xkb (layout from `lansing.desktop.keyboardLayout`)
+    keyboard-layout.nix                    # `lansing.desktop.keyboardLayout` option (ansi/iso) — toggles XKB layout + niri keybinds
     fonts.nix                              # Noto / Fira / JetBrains Nerd Fonts
     audio.nix                              # PipeWire + rtkit
     tools.nix                              # fuzzel, waybar, mako, ...

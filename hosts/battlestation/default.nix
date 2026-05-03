@@ -26,4 +26,6 @@
 
   networking.hostName = "battlestation";
   system.stateVersion = "25.11";
+
+  lansing.desktop.keyboardLayout = "iso";
 }

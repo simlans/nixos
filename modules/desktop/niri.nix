@@ -1,5 +1,7 @@
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 {
+  imports = [ ./keyboard-layout.nix ];
+
   programs.niri.enable = true;
 
   # Wire PAM for swaylock so it can actually authenticate. The package and
@@ -26,7 +28,7 @@
   };
 
   services.xserver.xkb = {
-    layout = "de";
+    layout = if config.lansing.desktop.keyboardLayout == "iso" then "de" else "us";
     variant = "";
   };
 

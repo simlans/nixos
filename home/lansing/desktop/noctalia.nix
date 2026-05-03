@@ -10,6 +10,11 @@
         predefinedScheme = "Catppuccin";
         darkMode = true;
         useWallpaperColors = false;
+        schedulingMode = "auto";
+      };
+      location = {
+        name = "Düsseldorf, Germany";
+        autoLocate = false;
       };
       wallpaper = {
         enabled = true;

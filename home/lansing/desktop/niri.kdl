@@ -115,6 +115,10 @@ output "DP-1" {
 // Find more information on the wiki:
 // https://yalter.github.io/niri/Configuration:-Layout
 layout {
+    // Transparent so Noctalia's wallpaper layer (rendered into the backdrop)
+    // shows through both the workspace background and the overview.
+    background-color "transparent"
+
     // Set gaps around windows in logical pixels.
     gaps 3
 
@@ -272,12 +276,8 @@ layout {
 // which may be more convenient to use.
 // See the binds section below for more spawn examples.
 
-// This line starts waybar, a commonly used bar for Wayland compositors.
-spawn-at-startup "waybar"
-
-// Pick a random image from ~/Pictures/Wallpapers/ if any exist,
-// otherwise fall back to the nixos-artwork default baked in via niri.nix.
-spawn-sh-at-startup r#"img=$(find "$HOME/Pictures/Wallpapers" -maxdepth 1 -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) 2>/dev/null | shuf -n 1); if [ -n "$img" ]; then swaybg -i "$img" -m fill; else swaybg -i @WALLPAPER@ -m fill; fi"#
+// Start the Noctalia shell (bar, launcher, control center, wallpaper module).
+spawn-at-startup "noctalia-shell"
 
 // To run a shell command (with variables, pipes, etc.), use spawn-sh-at-startup:
 // spawn-sh-at-startup "qs -c ~/source/qs/MyAwesomeShell"
@@ -290,7 +290,9 @@ hotkey-overlay {
 // Ask clients to omit client-side decorations and inform them that they are tiled.
 // This removes the rounded corners GTK/Adwaita apps draw themselves.
 // Apps need to be restarted for this to take effect.
-prefer-no-csd
+// Disabled while Noctalia drives the look — niri's geometry-corner-radius
+// rule below gives us consistent corners on every window instead.
+// prefer-no-csd
 
 // You can change the path where screenshots are saved.
 // A ~ at the front will be expanded to the home directory.
@@ -346,11 +348,56 @@ window-rule {
     // block-out-from "screencast"
 }
 
-// Example: enable rounded corners for all windows.
-// (This example rule is commented out with a "/-" in front.)
-/-window-rule {
-    geometry-corner-radius 12
+// Rounded corners for every window — niri-managed via geometry, not GTK CSD.
+// Noctalia recommends radius 20 for its modern look.
+window-rule {
+    geometry-corner-radius 20
     clip-to-geometry true
+}
+
+// Modern look: blur the window background. Requires niri ≥ 26.04 (we pull
+// niri from nixos-unstable for exactly this).
+window-rule {
+    background-effect {
+        blur true
+        xray false
+    }
+}
+
+// Noctalia's own wallpaper module gets the backdrop slot, so the overview
+// shows the wallpaper through transparent layout.background-color.
+layer-rule {
+    match namespace="^noctalia-wallpaper*"
+    place-within-backdrop true
+}
+
+// Don't blur through Noctalia's overlays — keep them solid.
+layer-rule {
+    match namespace="^noctalia-(background|launcher-overlay|dock)-.*$"
+    background-effect {
+        xray false
+    }
+}
+
+// Drop the workspace shadow in the overview so Noctalia's wallpaper layer
+// is the only thing painting the backdrop.
+overview {
+    workspace-shadow {
+        off
+    }
+}
+
+// Tunes for the blur kernel — Noctalia's recommended defaults.
+blur {
+    passes 2
+    offset 3.0
+    noise 0.03
+    saturation 1.0
+}
+
+// Suppress stale-focus warnings on Noctalia's xdg-activation traffic.
+debug {
+    honor-xdg-activation-with-invalid-serial
 }
 
 binds {
@@ -628,6 +675,6 @@ binds {
     // moving the mouse or pressing any other key.
     Mod+Shift+P { power-off-monitors; }
 
-    // Open wlogout power menu (lock/logout/suspend/reboot/shutdown).
-    Mod+Shift+End { spawn "wlogout"; }
+    // Open Noctalia's session menu (lock/logout/suspend/reboot/shutdown).
+    Mod+Shift+End { spawn "noctalia-shell" "ipc" "call" "sessionMenu" "toggle"; }
 }

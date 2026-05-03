@@ -1,8 +1,20 @@
-{ config, pkgs, ... }:
+{ config, pkgs, inputs, ... }:
+let
+  # niri on the 25.11 channel ships 25.11; nixos-unstable ships 26.04, which
+  # adds the blur effects that Noctalia recommends for its "modern look" niri
+  # setup. Pull niri from unstable — same pattern as claude-code / vscode.
+  unstable = import inputs.nixpkgs-unstable {
+    system = pkgs.stdenv.hostPlatform.system;
+    config.allowUnfree = true;
+  };
+in
 {
   imports = [ ./keyboard-layout.nix ];
 
-  programs.niri.enable = true;
+  programs.niri = {
+    enable = true;
+    package = unstable.niri;
+  };
 
   # Wire PAM for swaylock so it can actually authenticate. The package and
   # styling live in home-manager (home/lansing/desktop/swaylock.nix).

@@ -1,7 +1,5 @@
-{ pkgs, osConfig, ... }:
+{ osConfig, ... }:
 let
-  wallpaper = "${pkgs.nixos-artwork.wallpapers.simple-blue}/share/backgrounds/nixos/nix-wallpaper-simple-blue.png";
-
   keys =
     if osConfig.lansing.desktop.keyboardLayout == "iso" then {
       help      = "Mod+Shift+ssharp";
@@ -24,7 +22,6 @@ in
 {
   xdg.configFile."niri/config.kdl".text = builtins.replaceStrings
     [
-      "@WALLPAPER@"
       "@KEY_HELP@"
       "@KEY_CONSUME_L@"
       "@KEY_CONSUME_R@"
@@ -34,7 +31,6 @@ in
       "@KEY_HEIGHT_INC@"
     ]
     [
-      wallpaper
       keys.help
       keys.consumeL
       keys.consumeR
@@ -44,8 +40,4 @@ in
       keys.heightInc
     ]
     (builtins.readFile ./niri.kdl);
-
-  home.packages = with pkgs; [
-    swaybg
-  ];
 }

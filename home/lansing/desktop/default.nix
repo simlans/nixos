@@ -4,8 +4,7 @@
     ./alacritty.nix
     ./fuzzel.nix
     ./niri.nix
+    ./noctalia.nix
     ./swaylock.nix
-    ./waybar.nix
-    ./wlogout.nix
   ];
 }

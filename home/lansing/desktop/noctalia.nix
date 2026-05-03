@@ -28,7 +28,14 @@
       bar.widgets = {
         left = [
           { id = "Launcher"; }
-          { id = "Clock"; }
+          {
+            id = "Clock";
+            # Qt date/time format (case-sensitive): yyyy = 4-digit year,
+            # MM = 2-digit month, dd = 2-digit day, HH = 24h hour,
+            # mm = minute, ss = second.
+            formatHorizontal = "yyyy-MM-dd HH:mm:ss";
+            tooltipFormat = "yyyy-MM-dd HH:mm:ss";
+          }
           { id = "SystemMonitor"; }
           { id = "ActiveWindow"; maxWidth = 500; }
         ];

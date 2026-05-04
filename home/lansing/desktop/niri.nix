@@ -29,6 +29,7 @@ in
       "@KEY_WIDTH_INC@"
       "@KEY_HEIGHT_DEC@"
       "@KEY_HEIGHT_INC@"
+      "@OUTPUTS@"
     ]
     [
       keys.help
@@ -38,6 +39,7 @@ in
       keys.widthInc
       keys.heightDec
       keys.heightInc
+      osConfig.lansing.desktop.niriOutputs
     ]
     (builtins.readFile ./niri.kdl);
 }

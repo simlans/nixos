@@ -1,6 +1,11 @@
 # nixos-workstation
 
-Declarative NixOS configuration for `battlestation` (AMD Ryzen 7 9800X3D, Radeon RX 9070 XT, NVMe + LUKS, Niri/Wayland).
+Declarative NixOS configuration for two of simlans's machines:
+
+- **`battlestation`** — AMD Ryzen 7 9800X3D desktop, Radeon RX 9070 XT, NVMe + LUKS, Niri/Wayland.
+- **`workstation`** — Framework 13 Pro laptop (Intel Core Ultra 7 358H / Panther Lake), Intel Arc iGPU, NVMe + LUKS, Niri/Wayland, plus Slack.
+
+Two hosts, one flake, shared modules. Throughout this README, replace `<host>` with either `battlestation` or `workstation` depending on which machine you're working on.
 
 ## First-time install
 
@@ -9,24 +14,35 @@ Declarative NixOS configuration for `battlestation` (AMD Ryzen 7 9800X3D, Radeon
 Before booting the installer:
 
 1. Disable Secure Boot (it gets re-enabled at the end after key enrollment).
-2. Put Secure Boot into **Setup Mode** — on ASRock B850: *Security → Secure Boot → Secure Boot Mode → Custom* and then *Clear Secure Boot Keys*. Without Setup Mode the auto-enrollment on first boot silently does nothing.
+2. Put Secure Boot into **Setup Mode**:
+   - **battlestation (ASRock B850)**: *Security → Secure Boot → Secure Boot Mode → Custom* and then *Clear Secure Boot Keys*.
+   - **workstation (Framework 13 Pro, InsydeH2O)**: *Administer Secure Boot → Erase all Secure Boot Settings* — this also drops the firmware into Setup Mode.
+   Without Setup Mode the auto-enrollment on first boot silently does nothing.
 3. Confirm UEFI mode (no CSM / Legacy boot).
 
-If Windows is already installed on the second NVMe with **BitLocker active**: have the recovery key ready — sign in at <https://account.microsoft.com/devices/recoverykey> (or <https://aka.ms/myrecoverykey>) with the Microsoft account tied to the Windows install. Clearing the firmware keys changes PCR 7, so the next Windows boot prompts for recovery once.
+If Windows is already installed on the second NVMe with **BitLocker active** (battlestation only): have the recovery key ready — sign in at <https://account.microsoft.com/devices/recoverykey> (or <https://aka.ms/myrecoverykey>) with the Microsoft account tied to the Windows install. Clearing the firmware keys changes PCR 7, so the next Windows boot prompts for recovery once.
 
 ### Installation
 
-On the target machine, booted from the **NixOS 25.11 minimal USB**. The second NVMe (Corsair MP600) is removed during installation, so the Samsung 970 EVO Plus is guaranteed to be `/dev/nvme0n1`.
+On the target machine, booted from the **NixOS 25.11 minimal USB**.
+
+- **battlestation**: the second NVMe (Corsair MP600) is removed during installation, so the Samsung 970 EVO Plus is guaranteed to be `/dev/nvme0n1`.
+- **workstation**: the Framework 13 Pro has exactly one M.2 slot, so the Phison NVMe is always `/dev/nvme0n1`.
 
 ```bash
 # Keyboard layout (optional)
-sudo loadkeys de
+sudo loadkeys de   # battlestation has an ISO/DE keyboard
+sudo loadkeys us   # workstation has an ANSI/US keyboard
 
 # Network: wired to the router → DHCP lease from your LAN comes up automatically
 ping -c 1 nixos.org
 
 # Confirm disk path
 lsblk
+
+# Workstation only: note the WisdPi 10G expansion-card USB ID before
+# wiping the disk, so any out-of-tree driver can be wired up later.
+lsusb
 
 # One-shot: partition + install from the remote flake.
 #
@@ -43,7 +59,7 @@ lsblk
 sudo NIX_CONFIG="experimental-features = nix-command flakes
 tarball-ttl = 0" nix --refresh run \
   github:nix-community/disko/latest#disko-install -- \
-  --flake github:simlans/nixos-workstation#battlestation \
+  --flake github:simlans/nixos-workstation#<host> \
   --disk main /dev/nvme0n1 \
   --write-efi-boot-entries
 # → prompts only for the LUKS passphrase. disko-install runs
@@ -100,7 +116,7 @@ Boot into Windows via the BIOS boot picker (F11) once. With BitLocker active, ex
 
 ```bash
 git clone https://github.com/simlans/nixos-workstation ~/nixos-workstation
-sudo nixos-rebuild switch --flake ~/nixos-workstation#battlestation
+sudo nixos-rebuild switch --flake ~/nixos-workstation#<host>
 ```
 
 After cloning, run `direnv allow` in the repo root once. That triggers the
@@ -116,25 +132,31 @@ nix flake check
 ## Layout
 
 ```
-flake.nix                                # inputs + nixosConfigurations.battlestation
-disko/battlestation.nix                  # GPT: 1 GiB ESP (FAT32) + LUKS→ext4 root
+flake.nix                                # inputs + nixosConfigurations.{battlestation,workstation}
+disko/battlestation.nix                  # GPT: 1 GiB ESP (FAT32) + LUKS→ext4 root (desktop NVMe)
+disko/workstation.nix                    # same layout, separate file so #workstation has its own module path
 hosts/battlestation/
-  default.nix                            # host imports + hostName + stateVersion
-  hardware-configuration.nix             # AMD CPU, NVMe, AMD GPU (hand-tuned)
+  default.nix                            # host imports + hostName + stateVersion + ISO keyboard + DP-1 niri output
+  hardware-configuration.nix             # AMD CPU (kvm-amd, amd_pstate=active, microcode), NVMe initrd modules
+hosts/workstation/
+  default.nix                            # host imports + hostName + stateVersion + ANSI keyboard + eDP-1 niri output
+  hardware-configuration.nix             # Intel CPU (kvm-intel, microcode), NVMe + thunderbolt initrd modules — placeholder, regenerate after first boot
 modules/
   system/
     base.nix                             # locale, time, nix settings, OS toolbox
-    boot.nix                             # Lanzaboote (Secure Boot), linuxPackages_latest, amd_pstate
+    boot.nix                             # Lanzaboote (Secure Boot), linuxPackages_latest
     network.nix                          # NetworkManager, bluetooth, firewall
     users.nix                            # user lansing (incl. docker group)
     openssh.nix                          # SSH server + authorized keys
     tailscale.nix                        # tailscaled (auth key bootstrapped post-install)
   desktop/
     niri.nix                             # Niri WM, greetd+tuigreet, xdg-portal
+    keyboard-layout.nix                  # `lansing.desktop.{keyboardLayout,niriOutputs}` options + TTY keymap
+    laptop.nix                           # workstation-only: nixos-hardware framework module, fprintd, fwupd, thermald, lid behaviour
     fonts.nix                            # Noto / Fira / JetBrains Nerd Fonts
     audio.nix                            # PipeWire + rtkit
     tools.nix                            # mako, wl-clipboard, grim, slurp, ...
-  apps/                                  # firefox (+ 1P extension), onepassword (GUI+CLI), discord
+  apps/                                  # firefox (+ 1P extension), onepassword (GUI+CLI), discord, signal, spotify, slack (workstation only)
   gaming/                                # steam (+ 32-bit graphics)
   development/                           # claude-code (unstable), docker
 home/lansing/
@@ -181,7 +203,72 @@ Once the system boots into Niri, finish the per-user bootstrap:
    Tailscale persists the node identity under `/var/lib/tailscale`, so this is a
    one-shot per machine.
 
+## External displays (workstation)
+
+Niri does per-output workspaces by default — each screen has an independent vertical workspace stack, and `Mod+Up`/`Mod+Down` only scrolls the workspaces of the currently focused output. No `workspaces { … }` block is needed to keep the laptop and an external monitor independent.
+
+The `eDP-1` block already in `lansing.desktop.niriOutputs` (`hosts/workstation/default.nix`) is enough on its own. If no external monitor is plugged in, niri runs on the internal panel only; any monitor that gets plugged in afterwards is auto-detected with niri's defaults (preferred mode from EDID, scale 1, position to the right of existing outputs). Add an explicit `output { … }` block per external monitor when you want deterministic position, mode, or scale.
+
+### Identify outputs by EDID, not by connector name
+
+Niri accepts either form as the output identifier:
+
+- **Connector name** (`eDP-1`, `DP-1`, `DP-2`, …) — depends on which USB-C port the cable is in and on the order the kernel enumerates outputs at boot. Brittle across docks, adapters, and reboots.
+- **EDID `"Make Model Serial"`** — read directly from the monitor; stable across ports, adapters, and docks.
+
+For external monitors prefer EDID. With the monitor connected, run `niri msg outputs` and concatenate the `Make`, `Model`, and `Serial` fields with single spaces. Some monitors don't ship a serial in EDID — niri reports `Unknown` in that field, and the resulting identifier (e.g. `"BNQ BenQ_PD3420Q Unknown"`) is still a valid match.
+
+### Position math is in logical (post-scale) pixels
+
+The internal panel runs at 2880×1920 with `scale 1.5`, so its logical size is **1920×1280**. A 3440×1440 monitor at `scale 1.0` placed directly to the right of the laptop screen needs `position x=1920 y=0`. To bottom-align the external monitor with the laptop screen (laptop open on the desk next to it) use `position x=1920 y=-160` (`-160 = 1280 − 1440`).
+
+### Example: home-office monitor + office monitor
+
+```nix
+# In hosts/workstation/default.nix
+lansing.desktop.niriOutputs = ''
+  output "eDP-1" {
+      mode "2880x1920@120.000"
+      scale 1.5
+      position x=0 y=0
+  }
+
+  // Home office: 3440×1440 ultrawide via USB-C → HDMI adapter
+  output "TODO Make Model Serial (home)" {
+      mode "3440x1440"
+      scale 1
+      position x=1920 y=0
+  }
+
+  // Office: 3440×1440 ultrawide via direct USB-C
+  output "TODO Make Model Serial (office)" {
+      mode "3440x1440"
+      scale 1
+      position x=1920 y=0
+  }
+'';
+```
+
+Replace the `TODO …` strings with the values reported by `niri msg outputs` once each monitor is connected for the first time, then `sudo nixos-rebuild switch --flake .#workstation`. Output blocks for monitors that aren't currently connected are kept on file by niri and applied as soon as the matching EDID shows up, so committing all known monitors at once is fine.
+
+Hot-plug works automatically: niri creates the output on connect (applying any matching `output` block), folds the workspaces back into `eDP-1` on disconnect, and brings them back on reconnect. No daemon restart, no logout.
+
+### Pinning an app to a specific output
+
+If a window should always open on a particular monitor, add a `window-rule` to `home/lansing/desktop/niri.kdl` (outside the `@OUTPUTS@` placeholder area, since the rule is host-agnostic):
+
+```
+window-rule {
+    match app-id="Slack"
+    open-on-output "TODO Make Model Serial (office)"
+}
+```
+
+When the named output isn't connected, niri falls back to the currently focused output. Once the EDID strings have been filled in, mirror them into `AGENTS.md`'s workstation hardware table so they don't live only in tribal knowledge.
+
 ## Hardware
+
+### battlestation
 
 - CPU: AMD Ryzen 7 9800X3D (Zen 5 X3D, AM5)
 - GPU: AMD Radeon RX 9070 XT (RDNA 4 / Navi 48) — needs kernel ≥ 6.14, hence `linuxPackages_latest`
@@ -190,9 +277,31 @@ Once the system boots into Niri, finish the per-user bootstrap:
 - OS disk: Samsung 970 EVO Plus 500 GB (PCIe 3.0 NVMe)
 - 2nd disk (Corsair MP600): later for Windows; boot selection via BIOS (F11 at POST), no NixOS config needed
 
+### workstation
+
+- CPU: Intel Core Ultra 7 358H (Panther Lake / Series 3, 4P + 8E + 4LP cores up to 4.8 GHz)
+- GPU: Intel Arc Graphics (integrated)
+- Chassis: Framework 13 Pro (Series 3), bezel + keyboard ANSI/US, Graphite
+- RAM: 64 GB LPCAMM2 LPDDR5X
+- OS disk: Phison PS5031-E31T 2 TB PCIe 5.0 NVMe (M.2 2280, only slot on the FW13 Pro)
+- Display: 2.8K touchscreen (2880×1920 @ 120 Hz typically) — runs at niri `scale 1.5`
+- Battery: 74 Wh
+- Power adapter: 100 W USB-C (EU/KR plug)
+- Expansion cards: 3× USB-C, 1× USB-A (gen 2), 1× HDMI (3rd gen), 1× WisdPi 10G Ethernet, 1× SD
+- Fingerprint: Goodix sensor (handled by `services.fprintd` from `modules/desktop/laptop.nix`)
+
+### Framework 13 Pro quirks
+
+- **Secure Boot reset path** (InsydeH2O, not AMI): *Administer Secure Boot → Erase all Secure Boot Settings* drops the firmware into Setup Mode so Lanzaboote's auto-enrollment can install PK/KEK/db on the next boot.
+- **First `fwupd update`**: Framework distributes BIOS + EC firmware via LVFS. Some EC blobs aren't db-signed; if `fwupdmgr update` fails, toggle Secure Boot **off** in the BIOS, run the update, and re-enable Secure Boot afterwards.
+- **Fingerprint enrollment** (one-time, after first boot): `sudo fprintd-enroll lansing`. The PAM hooks for `login` and `sudo` are already wired up in `modules/desktop/laptop.nix`.
+- **Touchscreen**: handled by libinput + niri out of the box, no extra config needed.
+- **2.8K display**: niri runs the panel at `scale 1.5`. Verify the exact mode string with `niri msg outputs` after the first boot and adjust `lansing.desktop.niriOutputs` in `hosts/workstation/default.nix` if necessary.
+- **WisdPi 10G**: USB-C 10GbE expansion card, Linux driver depends on the chipset (Aquantia `atlantic` or Realtek `r8152` — both mainline). Run `lsusb` from the install USB and add the chipset note to `AGENTS.md` once known.
+
 ## Fallback: manual install
 
-If something needs editing before install (e.g. `disko/battlestation.nix`):
+If something needs editing before install (e.g. `disko/<host>.nix`):
 
 ```bash
 nix-shell -p git
@@ -201,8 +310,8 @@ cd /tmp/cfg
 # … edit …
 sudo NIX_CONFIG="experimental-features = nix-command flakes" nix run \
   github:nix-community/disko/latest -- \
-  --mode destroy,format,mount ./disko/battlestation.nix
-sudo nixos-install --flake .#battlestation
+  --mode destroy,format,mount ./disko/<host>.nix
+sudo nixos-install --flake .#<host>
 ```
 
 ## Validation (locally on a system with `nix`)
@@ -211,4 +320,5 @@ sudo nixos-install --flake .#battlestation
 nix flake check --no-build
 nix flake show
 nix eval .#nixosConfigurations.battlestation.config.system.build.toplevel.drvPath
+nix eval .#nixosConfigurations.workstation.config.system.build.toplevel.drvPath
 ```

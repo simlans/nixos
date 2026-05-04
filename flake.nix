@@ -1,5 +1,5 @@
 {
-  description = "NixOS configuration for the battlestation";
+  description = "NixOS configuration for simlans's machines (battlestation desktop, workstation laptop)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
@@ -23,6 +23,12 @@
       url = "github:nix-community/lanzaboote/v1.0.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Canned hardware modules — used by `workstation` for the
+    # Framework 13 Pro / Intel Core Ultra series 3 (Panther Lake) defaults
+    # (fwupd, fingerprint, kmod tweaks). nixos-hardware does not take
+    # nixpkgs as an input, so no `inputs.nixpkgs.follows` here.
+    nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
     # Marketplace mirror for VSCode extensions — gives access to every
     # extension on the Visual Studio Marketplace and Open VSX, not just
@@ -49,7 +55,7 @@
     };
   };
 
-  outputs = inputs@{ self, nixpkgs, home-manager, disko, lanzaboote, git-hooks, noctalia, ... }:
+  outputs = inputs@{ self, nixpkgs, home-manager, disko, lanzaboote, git-hooks, noctalia, nixos-hardware, ... }:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
@@ -73,6 +79,24 @@
           ./disko/battlestation.nix
           lanzaboote.nixosModules.lanzaboote
           ./hosts/battlestation
+          home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.extraSpecialArgs = { inherit inputs; };
+            home-manager.users.lansing = import ./home/lansing;
+          }
+        ];
+      };
+
+      nixosConfigurations.workstation = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { inherit self inputs; };
+        modules = [
+          disko.nixosModules.disko
+          ./disko/workstation.nix
+          lanzaboote.nixosModules.lanzaboote
+          ./hosts/workstation
           home-manager.nixosModules.home-manager
           {
             home-manager.useGlobalPkgs = true;

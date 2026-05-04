@@ -18,7 +18,12 @@ Don't wait to be asked. If you change behaviour and skip the doc update, the cha
 
 ## What is this?
 
-Declarative NixOS configuration for the workstation `battlestation`. A single flake describing this one host — no multi-host setup. Disk layout (LUKS + ext4), system modules, and home-manager configuration all live in the repo.
+Declarative NixOS configuration for two of simlans's machines:
+
+- **`battlestation`** — AMD desktop (Ryzen 7 9800X3D, RX 9070 XT).
+- **`workstation`** — Framework 13 Pro laptop (Intel Core Ultra 7 358H / Panther Lake), with Slack added on top of the otherwise-identical module set.
+
+Two hosts, one flake, shared modules. Host-specific deltas live under `hosts/<host>/` and `modules/desktop/laptop.nix` (the latter only imported by `workstation`). Disk layout (LUKS + ext4), system modules, and home-manager configuration all live in the repo.
 
 ## Stack
 
@@ -29,27 +34,33 @@ Declarative NixOS configuration for the workstation `battlestation`. A single fl
 - **`home-manager`** as a NixOS module (not standalone)
 - **Niri** (Wayland tiler) via `programs.niri.enable`
 - **`linuxPackages_latest`** instead of the channel default (RDNA 4 needs ≥ 6.14)
+- **`nixos-hardware`** (`master`) — provides the `framework-intel-core-ultra-series3` module imported by `modules/desktop/laptop.nix` for the workstation laptop
 - **`git-hooks.nix`** (cachix) — provides the devShell `shellHook` that installs `.git/hooks/pre-commit` (currently runs `gitleaks` on staged content; see Pitfalls)
 
 ## Repo layout
 
 ```
-flake.nix                                  # inputs + nixosConfigurations.battlestation
-disko/battlestation.nix                    # disko module: ESP + LUKS→ext4
+flake.nix                                  # inputs + nixosConfigurations.{battlestation,workstation}
+disko/battlestation.nix                    # disko module: ESP + LUKS→ext4 (battlestation NVMe)
+disko/workstation.nix                      # same layout as battlestation, separate file so #workstation has its own module path
 hosts/battlestation/
-  default.nix                              # host aggregator (imports modules + sets hostName)
-  hardware-configuration.nix               # hardware modules + nixpkgs.hostPlatform
+  default.nix                              # host aggregator: imports modules + hostName + ISO keyboard + DP-1 niri output
+  hardware-configuration.nix               # AMD CPU (kvm-amd, amd_pstate=active, microcode), NVMe initrd modules
+hosts/workstation/
+  default.nix                              # host aggregator: imports modules + laptop.nix + slack.nix + hostName + ANSI keyboard + eDP-1 niri output
+  hardware-configuration.nix               # Intel CPU (kvm-intel, microcode), NVMe + thunderbolt initrd modules — placeholder, regenerate after first boot
 modules/
   system/
     base.nix                               # locale, time, nix.settings, GC, zramSwap, allowUnfree
-    boot.nix                               # lanzaboote, linuxPackages_latest, amd_pstate
+    boot.nix                               # lanzaboote, linuxPackages_latest (kernel-param policy lives in hosts/<host>/hardware-configuration.nix)
     network.nix                            # NetworkManager, bluetooth, firewall
     users.nix                              # user lansing + groups (incl. docker); password set via nixos-enter at install
     openssh.nix                            # services.openssh + authorized keys
     tailscale.nix                          # tailscaled (auth key bootstrapped manually)
   desktop/
     niri.nix                               # programs.niri + greetd + xdg.portal + xkb (layout from `lansing.desktop.keyboardLayout`)
-    keyboard-layout.nix                    # `lansing.desktop.keyboardLayout` option (ansi/iso) — toggles XKB layout + niri keybinds
+    keyboard-layout.nix                    # `lansing.desktop.{keyboardLayout,niriOutputs}` options + TTY console keymap (iso→de, ansi→us)
+    laptop.nix                             # workstation-only: nixos-hardware framework-intel-core-ultra-series3, fprintd, fwupd, thermald, lid behaviour, TLP override
     fonts.nix                              # Noto / Fira / JetBrains Nerd Fonts
     audio.nix                              # PipeWire + rtkit
     tools.nix                              # mako, wl-clipboard, grim, slurp, ...
@@ -60,6 +71,7 @@ modules/
     discord.nix                            # discord (system package)
     signal.nix                             # signal-desktop (system package)
     spotify.nix                            # spotify (system package, unfree)
+    slack.nix                              # slack (system package, unfree) — only imported by workstation
   gaming/
     steam.nix                              # programs.steam + 32-bit graphics
   development/
@@ -92,7 +104,7 @@ Rules:
   - `gaming/` (modules only) — Steam and friends
   - `development/` — dev tooling. System half (`modules/development/`) holds the daemons (Docker, …); user half (`home/lansing/development/`) holds the CLIs (git, kubectl, go, neovim, …).
   - `shell/` (home only) — zsh, tmux, direnv — anything that shapes the interactive shell session.
-  Each new system module also has to be imported in `hosts/battlestation/default.nix`. New home-manager files get imported by their category's `default.nix` (e.g. `home/lansing/development/default.nix`).
+  Each new system module has to be imported in **both** `hosts/battlestation/default.nix` and `hosts/workstation/default.nix` (otherwise it lands on only one host and silently drifts the two configs apart). The exception is intentionally host-specific modules: `modules/desktop/laptop.nix` is workstation-only, and `modules/apps/slack.nix` is workstation-only by spec. New home-manager files get imported by their category's `default.nix` (e.g. `home/lansing/development/default.nix`).
 - Secrets do not belong in this repo. Encrypted-at-rest secrets in the flake (`sops-nix`/`agenix`) are out of scope; per-project `.envrc` + `op` (1Password CLI) is the supported runtime path. Ask the user before adding any encrypted-secret tooling.
 
 ## Conventions
@@ -127,7 +139,7 @@ Don't mix categories in one file — one tool per file is the convention.
 - Shell-shaping tool (prompt, multiplexer, dir hook) → `home/lansing/shell/<tool>.nix` + import from `home/lansing/shell/default.nix`.
 
 ### Enable a new service
-New file in the category that fits (`modules/system/`, `modules/development/`, …), then import it in `hosts/battlestation/default.nix`. Don't squeeze it into `base.nix` — that should stay system fundamentals.
+New file in the category that fits (`modules/system/`, `modules/development/`, …), then import it in **both** `hosts/battlestation/default.nix` and `hosts/workstation/default.nix` if it should run on both. Host-specific services go into the corresponding host's `default.nix` only (or, for laptop-only services, `modules/desktop/laptop.nix`). Don't squeeze it into `base.nix` — that should stay system fundamentals.
 
 ### Update inputs
 ```bash
@@ -139,30 +151,47 @@ nix flake update nixpkgs-unstable   # bumps claude-code (only consumer of unstab
 ### Refresh hardware config (after a hardware change)
 ```bash
 sudo nixos-generate-config --show-hardware-config \
-  > hosts/battlestation/hardware-configuration.nix
+  > hosts/<host>/hardware-configuration.nix
 ```
 Afterwards you MUST verify: `fileSystems`, `swapDevices`, `boot.initrd.luks.*` must be removed (those are owned by disko). Otherwise it collides with the disko module.
 
 ## Validation
 
-All commands run locally (any host with Nix, or directly on the battlestation):
+All commands run locally (any host with Nix, or directly on either machine):
 
 ```bash
 nix flake check --no-build                                            # outputs valid?
-nix flake show                                                        # nixosConfigurations.battlestation must show up
+nix flake show                                                        # nixosConfigurations.{battlestation,workstation} must show up
 nix eval .#nixosConfigurations.battlestation.config.system.build.toplevel.drvPath
+nix eval .#nixosConfigurations.workstation.config.system.build.toplevel.drvPath
 nix eval .#nixosConfigurations.battlestation.config.disko.devices --json | jq
+nix eval .#nixosConfigurations.workstation.config.disko.devices --json  | jq
+
+# Multi-host smoke checks (verify the two hosts haven't drifted)
+nix eval --raw .#nixosConfigurations.battlestation.config.console.keyMap   # de
+nix eval --raw .#nixosConfigurations.workstation.config.console.keyMap     # us
+nix eval --json .#nixosConfigurations.battlestation.config.boot.kernelParams  # contains "amd_pstate=active"
+nix eval --json .#nixosConfigurations.workstation.config.boot.kernelParams    # NOT containing amd_pstate
+nix eval .#nixosConfigurations.workstation.config.services.tlp.enable      # false (mkForce)
+nix eval .#nixosConfigurations.workstation.config.services.fprintd.enable  # true
 ```
 
-On the battlestation:
+On the target machine:
 ```bash
-sudo nixos-rebuild build  --flake .#battlestation       # builds, no activation
-sudo nixos-rebuild switch --flake .#battlestation       # activates + sets default generation
-sudo nixos-rebuild test   --flake .#battlestation       # activates without setting default
+sudo nixos-rebuild build  --flake .#<host>     # builds, no activation
+sudo nixos-rebuild switch --flake .#<host>     # activates + sets default generation
+sudo nixos-rebuild test   --flake .#<host>     # activates without setting default
 ```
 
 ## Pitfalls
 
+- **`hosts/workstation/hardware-configuration.nix` is a hand-written placeholder.** The Framework 13 Pro didn't physically exist when the file was committed, so it lists conservative Intel-laptop defaults. After the first boot of the laptop, run `sudo nixos-generate-config --show-hardware-config` and merge any new kernel modules / firmware bits into the file. As always, do **not** add `fileSystems` or `boot.initrd.luks.devices.*` back — disko (`disko/workstation.nix`) is authoritative.
+- **`amd_pstate=active` lives in `hosts/battlestation/hardware-configuration.nix`, not in the shared `modules/system/boot.nix`.** It is AMD-specific and breaks the workstation if it bleeds into the shared module again. The Intel CPU on the workstation uses `intel_pstate`/`intel_cpufreq` automatically — no kernel-param needed there.
+- **`console.keyMap` is derived from `lansing.desktop.keyboardLayout` in `modules/desktop/keyboard-layout.nix` (`iso → de`, `ansi → us`).** Don't hardcode `console.keyMap` directly in `base.nix` or anywhere else; the option is the single source of truth and drives both XKB (Wayland) and the Linux TTY console.
+- **`nixos-hardware`'s `common-pc-laptop`** (transitively imported by `framework-intel-core-ultra-series3`) enables TLP by default. We force `services.tlp.enable = lib.mkForce false;` in `modules/desktop/laptop.nix` so the existing `services.power-profiles-daemon` (`modules/desktop/power.nix`) stays the single power manager — TLP and ppd refuse to coexist.
+- **Framework 13 Pro BIOS uses InsydeH2O, not AMI.** Secure-Boot reset path is *Administer Secure Boot → Erase all Secure Boot Settings* (NOT the ASRock B850 path of *Custom → Clear Secure Boot Keys*). First `fwupdmgr update` may also need Secure Boot temporarily off because some EC blobs aren't db-signed.
+- **Niri `output { … }` blocks aren't pinned in `home/lansing/desktop/niri.kdl` directly.** The kdl file has an `@OUTPUTS@` placeholder; the host fills it in via `lansing.desktop.niriOutputs` (battlestation: DP-1 ultrawide; workstation: eDP-1 HiDPI). Editing the kdl in place removes the placeholder and breaks templating.
+- **External-monitor `output` blocks should match by EDID `"Make Model Serial"`, not by connector name** (`DP-1`, `DP-2`, …). Connector enumeration depends on which USB-C port the cable is in and on the kernel's hot-plug order; the same monitor lands on `DP-1` in one dock and on `DP-3` on a single cable. EDID is read straight from the monitor and stays stable across ports, adapters, and docks. Use `niri msg outputs` to read the identifier from the live system. Niri does **per-output workspaces by default**, so no `workspaces { … }` block is required to keep the laptop and an external monitor independent. The position field uses logical (post-scale) pixels: with eDP-1 at scale 1.5 its logical size is 1920×1280, so a monitor placed at scale 1.0 to its right starts at `x=1920`. Detailed walk-through and examples live in `README.md` under "External displays (workstation)".
 - **Don't** put `fileSystems."/" = …;` (or similar) into `hardware-configuration.nix` — disko provides those. Otherwise the flake fails to evaluate or you get duplicate mountpoints.
 - **`programs.niri.package`** shouldn't be overridden without a reason — the nixpkgs module handles Wayland/polkit/portal wiring.
 - **`boot.kernelPackages = pkgs.linuxPackages_latest;`** is intentional; reverting it to the channel default risks black-screen on the RX 9070 XT (RDNA 4 < kernel 6.14 is a gamble).
@@ -184,6 +213,8 @@ sudo nixos-rebuild test   --flake .#battlestation       # activates without sett
 
 ## Hardware (quick ref)
 
+### battlestation
+
 | Component | Model | Linux note |
 |---|---|---|
 | CPU | AMD Ryzen 7 9800X3D (Zen 5) | `kvm-amd`, `amd_pstate=active` |
@@ -192,9 +223,23 @@ sudo nixos-rebuild test   --flake .#battlestation       # activates without sett
 | OS disk | Samsung 970 EVO Plus 500 GB NVMe | `/dev/nvme0n1` (the only NVMe present during install) |
 | 2nd disk | Corsair MP600 | removed at install; later Windows; dual-boot via BIOS picker |
 
+### workstation
+
+| Component | Model | Linux note |
+|---|---|---|
+| Chassis | Framework 13 Pro (Series 3) | InsydeH2O BIOS, fwupd-managed BIOS + EC firmware |
+| CPU | Intel Core Ultra 7 358H (Panther Lake) | `kvm-intel`, Intel microcode; `intel_pstate` automatic |
+| GPU | Intel Arc Graphics (integrated, Panther Lake) | `i915`/`xe` driver; mainline kernel ≥ 6.16 recommended |
+| RAM | 64 GB LPCAMM2 LPDDR5X | — |
+| OS disk | Phison PS5031-E31T 2 TB PCIe 5.0 NVMe | `/dev/nvme0n1` (only M.2 slot on the FW13 Pro) |
+| Display | 2.8K touchscreen, 120 Hz | niri `scale 1.5`; libinput handles touch out of the box |
+| Wi-Fi / BT | (Framework default — Intel BE201 / AX210) | iwd backend in NetworkManager |
+| Ethernet | WisdPi 10G via USB-C expansion card | chipset TBD — `lsusb` from the install USB; likely Aquantia `atlantic` (mainline) |
+| Fingerprint | Goodix sensor | `services.fprintd` + PAM hooks for login + sudo (laptop.nix) |
+| Keyboard | ANSI / US, Graphite | `lansing.desktop.keyboardLayout = "ansi"` (drives XKB + TTY) |
+
 ## Out of scope (for now)
 
-- Multi-host setup (only `battlestation` exists)
 - Encrypted-at-rest secrets in the flake (`sops-nix`/`agenix`) — runtime secrets via `op` + `direnv` are supported; everything else needs an explicit OK
 - Custom kernel builds
 - nixos-anywhere for remote installs (bootstrap runs locally from the USB stick)

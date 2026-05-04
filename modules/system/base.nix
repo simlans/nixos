@@ -8,9 +8,6 @@
     "de_DE.UTF-8/UTF-8"
   ];
 
-  # TTY keyboard stays DE-ISO; UI language is English.
-  console.keyMap = "de";
-
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
     auto-optimise-store = true;

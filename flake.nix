@@ -107,34 +107,87 @@
         ];
       };
 
-      # `nix run .#tailscale-up` — bootstrap this node into the tailnet.
-      # Reads the auth key either from a TTY prompt or from stdin, so both
-      # interactive use and `op read 'op://nixos/tailscale-nixos-authkey/credential'
-      #   | nix run .#tailscale-up` work. Calls `sudo tailscale up` with
-      # the standard --accept-dns --accept-routes flags. Single-shot:
-      # tailscale persists the node identity under /var/lib/tailscale.
-      apps.${system}.tailscale-up = {
-        type = "app";
-        program = "${pkgs.writeShellApplication {
-          name = "tailscale-up";
-          runtimeInputs = [ pkgs.tailscale ];
-          text = ''
-            if [ ! -t 0 ]; then
-              key="$(cat)"
-            else
-              IFS= read -srp 'Tailscale auth key: ' key
-              printf '\n' >&2
-            fi
-            if [ -z "$key" ]; then
-              echo 'no auth key given, aborting' >&2
-              exit 1
-            fi
-            exec sudo tailscale up \
-              --auth-key="$key" \
-              --accept-dns \
-              --accept-routes
-          '';
-        }}/bin/tailscale-up";
+      apps.${system} = {
+        # `nix run .#tailscale-up` — bootstrap this node into the tailnet.
+        # Reads the auth key either from a TTY prompt or from stdin, so both
+        # interactive use and `op read 'op://nixos/tailscale-nixos-authkey/credential'
+        #   | nix run .#tailscale-up` work. Calls `sudo tailscale up` with
+        # the standard --accept-dns --accept-routes flags. Single-shot:
+        # tailscale persists the node identity under /var/lib/tailscale.
+        tailscale-up = {
+          type = "app";
+          program = "${pkgs.writeShellApplication {
+            name = "tailscale-up";
+            runtimeInputs = [ pkgs.tailscale ];
+            text = ''
+              if [ ! -t 0 ]; then
+                key="$(cat)"
+              else
+                IFS= read -srp 'Tailscale auth key: ' key
+                printf '\n' >&2
+              fi
+              if [ -z "$key" ]; then
+                echo 'no auth key given, aborting' >&2
+                exit 1
+              fi
+              exec sudo tailscale up \
+                --auth-key="$key" \
+                --accept-dns \
+                --accept-routes
+            '';
+          }}/bin/tailscale-up";
+        };
+
+        # `nix run .#init-account` — install-time bootstrap for the
+        # `lansing` account: sets the login password via
+        # `nixos-enter -c 'passwd lansing'` and seeds the GECOS source
+        # file at `<root>/etc/nixos/local/full-name`. Optional positional
+        # argument is the mount point of the freshly-installed system
+        # (default `/mnt`, i.e. wherever disko-install left the new
+        # rootfs). Combines what the README used to spell out as two
+        # commands so the whole post-disko-install bootstrap fits in a
+        # single `nix run` invocation. To change the realname later on a
+        # running system, just edit `/etc/nixos/local/full-name` directly
+        # and run `nixos-rebuild switch` — the activation script in
+        # `modules/system/users.nix` re-applies it via usermod.
+        init-account = {
+          type = "app";
+          program = "${pkgs.writeShellApplication {
+            name = "init-account";
+            runtimeInputs = [ pkgs.coreutils ];
+            text = ''
+              root="''${1:-/mnt}"
+
+              if [ ! -d "$root/etc" ]; then
+                echo "no NixOS root found at $root (expected $root/etc)" >&2
+                echo "pass the mount point as the first argument if it is not /mnt" >&2
+                exit 1
+              fi
+
+              echo "==> Setting login password for user lansing (in $root)" >&2
+              sudo nixos-enter --root "$root" -c 'passwd lansing'
+
+              echo "" >&2
+              echo "==> Setting GECOS / lock-screen real name" >&2
+              IFS= read -rp 'Full name (e.g. "Lansing Surname"): ' name
+              if [ -z "$name" ]; then
+                echo 'no name given; password is set, but GECOS file was NOT created.' >&2
+                echo "Write '$root/etc/nixos/local/full-name' yourself before reboot," >&2
+                echo "or edit '/etc/nixos/local/full-name' on the running system later." >&2
+                exit 0
+              fi
+              case "$name" in
+                *:*)
+                  echo 'name must not contain ":" (would corrupt /etc/passwd)' >&2
+                  exit 1
+                  ;;
+              esac
+              target="$root/etc/nixos/local/full-name"
+              printf '%s\n' "$name" | sudo install -Dm644 /dev/stdin "$target"
+              echo "wrote: $target" >&2
+            '';
+          }}/bin/init-account";
+        };
       };
 
       # Pre-commit hooks (gitleaks). `nix flake check` runs the suite; the

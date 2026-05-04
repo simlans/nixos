@@ -65,10 +65,18 @@ tarball-ttl = 0" nix --refresh run \
 # → prompts only for the LUKS passphrase. disko-install runs
 #   `nixos-install --no-root-passwd`, so no interactive root prompt
 #   appears. The flake intentionally has no initialPassword/hashedPassword,
-#   so the user account is created locked — set a password before the first
-#   reboot via nixos-enter (the new system stays mounted at /mnt after
-#   disko-install exits):
-sudo nixos-enter --root /mnt -c 'passwd lansing'
+#   so the user account is created locked.
+#
+# Bootstrap the `lansing` account in one step: prompts for the login
+# password (via `nixos-enter -c 'passwd lansing'`) and the real name,
+# then writes the GECOS source to /mnt/etc/nixos/local/full-name. The
+# activation script `applyLocalFullName` in `modules/system/users.nix`
+# re-applies the realname via usermod on every rebuild — the file lives
+# outside the Nix store so it survives rebuilds without ever entering
+# git. The new system stays mounted at /mnt after disko-install exits,
+# which is why this runs before reboot.
+NIX_CONFIG="experimental-features = nix-command flakes" \
+  nix run github:simlans/nixos-workstation#init-account
 ```
 
 `reboot`, pull the USB, type the LUKS passphrase → `tuigreet` comes up. Log
@@ -84,6 +92,11 @@ changes (`sudo passwd`, `nixos-enter -c 'passwd …'`) cannot — root never see
 the old keyring password. If you're stuck with a mismatched keyring, fix it
 once with `seahorse` (change keyring password) or remove
 `~/.local/share/keyrings/{login.keyring,user.keystore}` and let it regenerate.
+
+First-boot caveat for the GECOS step: the lock-screen greeting will read
+`Welcome back, lansing!` until the first `sudo nixos-rebuild switch` runs
+the activation script — see [Subsequent rebuilds](#subsequent-rebuilds)
+just below; that step is part of the normal install flow anyway.
 
 ### Finish Secure Boot setup
 
@@ -129,10 +142,22 @@ scan manually:
 nix flake check
 ```
 
+### Change the GECOS / lock-screen real name
+
+`/etc/nixos/local/full-name` is the single source of truth for the
+description column of `/etc/passwd`. Edit the file, then rebuild — the
+activation script in `modules/system/users.nix` picks up the new value
+via `usermod` on the next switch:
+
+```bash
+sudoedit /etc/nixos/local/full-name
+sudo nixos-rebuild switch --flake ~/nixos-workstation#<host>
+```
+
 ## Layout
 
 ```
-flake.nix                                # inputs + nixosConfigurations.{battlestation,workstation}
+flake.nix                                # inputs + nixosConfigurations.{battlestation,workstation} + apps.{tailscale-up,init-account}
 disko/battlestation.nix                  # GPT: 1 GiB ESP (FAT32) + LUKS→ext4 root (desktop NVMe)
 disko/workstation.nix                    # same layout, separate file so #workstation has its own module path
 hosts/battlestation/
@@ -194,11 +219,19 @@ Once the system boots into Niri, finish the per-user bootstrap:
      queries the GUI daemon and the session is shared by every shell on the
      desktop session.
 
+   The Niri session itself no longer depends on 1Password — the lock-screen
+   real name is sourced from `/etc/passwd` (seeded at install time via
+   `nix run .#init-account`), so noctalia-shell starts cleanly even if the
+   1P GUI hasn't been launched yet. The bullets above are still required
+   for SSH agent + signed commits + `home/lansing/development/git.nix`'s
+   `~/.envrc` (commit identity), but those are only needed once you start
+   pushing code, not for the desktop to come up.
+
 2. **Tailscale** — the daemon is on but the node isn't joined. Run the flake app
    once; it prompts for the auth key and runs `tailscale up`:
    ```bash
    nix run .#tailscale-up                                                    # interactive prompt
-   op read 'op://nixos/tailscale-nixos-authkey/credential' | nix run .#tailscale-up  # piped
+   op read 'op://Private/tailscale-nixos-authkey/credential' | nix run .#tailscale-up  # piped
    ```
    Tailscale persists the node identity under `/var/lib/tailscale`, so this is a
    one-shot per machine.

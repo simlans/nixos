@@ -274,12 +274,15 @@ layout {
 // See the binds section below for more spawn examples.
 
 // Start the Noctalia shell (bar, launcher, control center, wallpaper module).
-// NOCTALIA_REALNAME overrides the lock-screen "Welcome back <name>" line
-// (see HostService.qml displayName precedence). Pulled from 1Password via
-// op-cache so the real name never lands in /nix/store; same pattern as
-// home/lansing/development/git.nix. Falls back silently to $USER if the
-// cache miss / agent locked.
-spawn-sh-at-startup "NOCTALIA_REALNAME=\"$(op-cache read 'op://Private/GitHub/name')\" exec noctalia-shell"
+// The lock-screen "Welcome back <name>" line falls back to the GECOS field
+// in /etc/passwd when NOCTALIA_REALNAME is unset (HostService.qml's
+// displayName chain: env var → `getent passwd "$USER" | cut -d: -f5 | cut -d, -f1`
+// → $USER → "User"). The GECOS field is seeded from /etc/nixos/local/full-name
+// at install time (`nix run .#init-account`, see README) and re-applied on
+// every rebuild via system.activationScripts.applyLocalFullName in
+// modules/system/users.nix — so the desktop session has no startup
+// dependency on the 1Password daemon.
+spawn-at-startup "noctalia-shell"
 
 hotkey-overlay {
     // Uncomment this line to disable the "Important Hotkeys" pop-up at startup.

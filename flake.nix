@@ -2,7 +2,11 @@
   description = "NixOS configuration for simlans's machines (battlestation desktop, workstation laptop)";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    # Temporarily on release-25.11 instead of the Hydra-tested nixos-25.11
+    # channel to pull in the GHSA-vh5x-56v6-4368 / GHSA-gr92-w2r5-qw5p Nix
+    # daemon LPE fix (PR #516633) before the channel advances. Revert to
+    # nixos-25.11 once status.nixos.org shows the patch in the channel.
+    nixpkgs.url = "github:NixOS/nixpkgs/release-25.11";
 
     # Bleeding-edge channel used only for fast-moving packages where the
     # 25.11 release lags too far behind upstream (currently: claude-code).

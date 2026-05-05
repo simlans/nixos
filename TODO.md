@@ -9,3 +9,4 @@
 - [ ] Readd Mod+D besides Mod+Space to open app launcher
 - [ ] Use Noctalia Login screen
 - [ ] Add own workspace "gaming" for Steam
+- [ ] VSCode Terminal shows square icon instead of a NixOS Flake symbol

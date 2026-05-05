@@ -14,6 +14,14 @@
   environment.sessionVariables.SSH_AUTH_SOCK = "$HOME/.1password/agent.sock";
 
   lansing.desktop.niri.appWindowRules = [
+    # Route every 1Password window to the passwords workspace. We
+    # cannot distinguish the main vault from transient overlays
+    # (SSH-agent auth, etc.) at niri's open-time rule evaluation:
+    # they share the app-id, and 1Password sets titles only after
+    # the window is already mapped — too late for `open-on-workspace`
+    # decisions. Trade-off: the SSH-auth prompt also pops on the
+    # passwords workspace; you have to Mod-jump back. Acceptable cost
+    # for getting the main window routed reliably.
     {
       match.app-id = "^1password$";
       openOnWorkspace = "passwords";

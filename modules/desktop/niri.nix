@@ -130,12 +130,25 @@ in
       variant = "";
     };
 
-    services.greetd = {
+    # ReGreet is a GTK4 graphical greeter for greetd. Enabling the NixOS
+    # module flips on `services.greetd` for us and sets
+    # `default_session.command` (via mkDefault) to
+    # `dbus-run-session cage -s -- regreet`. niri's wayland-session
+    # desktop file (installed by `programs.niri`) shows up in the
+    # session dropdown automatically — no hard-coded `--cmd niri-session`
+    # like the old tuigreet config.
+    programs.regreet = {
       enable = true;
+      # Match the rest of the system (modules/desktop/fonts.nix). Default
+      # is Cantarell 16, tuned for a sans face — drop a couple of points
+      # for the mono.
+      font = {
+        name = "JetBrainsMono Nerd Font";
+        size = 14;
+      };
       settings = {
-        default_session = {
-          command = "${pkgs.tuigreet}/bin/tuigreet --time --cmd niri-session";
-          user = "greeter";
+        GTK = {
+          application_prefer_dark_theme = true;
         };
       };
     };

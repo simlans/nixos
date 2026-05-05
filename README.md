@@ -79,9 +79,10 @@ NIX_CONFIG="experimental-features = nix-command flakes" \
   nix run github:simlans/nixos-workstation#init-account
 ```
 
-`reboot`, pull the USB, type the LUKS passphrase → `tuigreet` comes up. Log
-in as `lansing` with the password just set. Root stays without a password
-(`PermitRootLogin = "no"`, sudo via `wheel`).
+`reboot`, pull the USB, type the LUKS passphrase → `ReGreet` (the GTK
+greeter we run on top of greetd) comes up. Log in as `lansing` with the
+password just set. Root stays without a password (`PermitRootLogin = "no"`,
+sudo via `wheel`).
 
 Set the **real** password at this `nixos-enter` step — not a placeholder you
 plan to rotate later. The login GNOME keyring (Secret Service backend used by
@@ -175,7 +176,7 @@ modules/
     openssh.nix                          # SSH server + authorized keys
     tailscale.nix                        # tailscaled (auth key bootstrapped post-install)
   desktop/
-    niri.nix                             # Niri WM, greetd+tuigreet, xdg-portal
+    niri.nix                             # Niri WM, greetd+ReGreet, xdg-portal
     keyboard-layout.nix                  # `lansing.desktop.{keyboardLayout,niriOutputs}` options + TTY keymap
     laptop.nix                           # workstation-only: nixos-hardware framework module, fprintd, fwupd, thermald, lid behaviour
     fonts.nix                            # Noto / Fira / JetBrains Nerd Fonts

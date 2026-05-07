@@ -22,6 +22,12 @@ in
         entry, Mod+2 the second, etc. Rendered into niri.kdl at the
         @WORKSPACES@ marker.
 
+        Niri focuses the first declared workspace at session start.
+        The startup-focus override (a spawn-at-startup running
+        `niri msg action focus-workspace main` in niri.kdl) jumps the
+        session to `main` so login doesn't land on the password
+        surface.
+
         Note: niri does not auto-create named workspaces from
         `open-on-workspace` rules. Every workspace referenced in
         `appWindowRules.openOnWorkspace` must be declared here, or the

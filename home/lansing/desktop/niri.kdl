@@ -302,6 +302,13 @@ environment {
 // dependency on the 1Password daemon.
 spawn-at-startup "noctalia-shell"
 
+// Niri focuses the first declared workspace at session start, which is
+// `passwords` (the 1Password workspace) per
+// lansing.desktop.niri.workspaces. Jump straight to `main` so login
+// doesn't land on the vault. Runs after niri's IPC socket is up; a
+// brief flash from passwords→main on slow boots is acceptable.
+spawn-at-startup "niri" "msg" "action" "focus-workspace" "main"
+
 hotkey-overlay {
     // Uncomment this line to disable the "Important Hotkeys" pop-up at startup.
     // skip-at-startup

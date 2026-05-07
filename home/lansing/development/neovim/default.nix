@@ -53,7 +53,7 @@
           persistence-nvim
 
           tokyonight-nvim
-          catppuccin-nvim
+          { name = "catppuccin"; path = catppuccin-nvim; }
 
           nvim-lspconfig
           conform-nvim

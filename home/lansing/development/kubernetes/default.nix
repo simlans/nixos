@@ -4,6 +4,7 @@
     kubectl
     k9s
     fluxcd
+    talosctl
   ];
 
   xdg.configFile = {

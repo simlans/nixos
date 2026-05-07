@@ -396,7 +396,15 @@ window-rule {
 
 // Modern look: blur the window background. Requires niri ≥ 26.04 (we pull
 // niri from nixos-unstable for exactly this).
+//
+// draw-border-with-background false: niri's default fills the focus ring
+// as a solid rect *behind* the window (so it shows through CSD windows of
+// arbitrary shape). With semitransparent windows the ring's active-color
+// then bleeds through and hides the blur on the focused window only.
+// clip-to-geometry above gives every window a known rounded-rect shape,
+// so drawing the ring *around* instead is safe globally.
 window-rule {
+    draw-border-with-background false
     background-effect {
         blur true
         xray false

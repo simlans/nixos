@@ -11,6 +11,9 @@ in
   programs.alacritty = {
     enable = true;
     settings.window.decorations = "None";
+    # Semitransparent so niri's blur background-effect (niri.kdl) is
+    # actually visible — opaque windows hide it.
+    settings.window.opacity = 0.9;
     settings.font = {
       size = 10;
       normal.family = "JetBrainsMono Nerd Font";

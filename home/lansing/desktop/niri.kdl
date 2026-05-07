@@ -275,6 +275,17 @@ layout {
     }
 }
 
+// Environment variables exported into every child niri spawns. Scoped to
+// the niri session — keep DISPLAY out of system-wide environment.sessionVariables
+// or greetd's cage compositor will pick it up at boot, try the wlroots X11
+// backend, and fail with "Failed to open xcb connection".
+//
+// DISPLAY ":0" matches the argument we pass to xwayland-satellite in
+// modules/desktop/niri.nix; X11 clients connect to that rootless socket.
+environment {
+    DISPLAY ":0"
+}
+
 // Add lines like this to spawn processes at startup.
 // Note that running niri as a session supports xdg-desktop-autostart,
 // which may be more convenient to use.

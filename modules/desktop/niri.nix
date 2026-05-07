@@ -106,7 +106,13 @@ in
     # xwayland-satellite. There is no NixOS module for it in 25.11, so wire it
     # up as a systemd user service tied to graphical-session.target.
     environment.systemPackages = [ pkgs.xwayland-satellite ];
-    environment.sessionVariables.DISPLAY = ":0";
+    # DISPLAY for X11 clients lives in niri's `environment { … }` block in
+    # niri.kdl, NOT in environment.sessionVariables. wlroots' backend
+    # autodetection (used by cage, which hosts ReGreet under greetd) treats
+    # DISPLAY in the env as "use the X11 backend" and tries to xcb_connect
+    # to that display at boot — there is no X server, so cage exits with
+    # "Failed to open xcb connection" and the greeter never appears. Scoping
+    # DISPLAY to niri-spawned children keeps greetd/cage clean.
     # Tells nixpkgs Electron/Chromium wrappers (spotify, vscode, …) to launch
     # natively on Wayland. Without this they fall back to XWayland and ignore
     # niri's prefer-no-csd, leaving CSD title bars in place.

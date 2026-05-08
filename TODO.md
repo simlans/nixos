@@ -11,4 +11,4 @@
 - [x] Use Noctalia Login screen alternative
 - [x] Add own workspace "gaming" for Steam
 - [x] VSCode Terminal shows square icon instead of a NixOS Flake symbol
-- [ ] Wire up the Elgato Cam Link 4K (USB HDMI capture) so it shows up as a v4l2 source for video calls / OBS
+- [x] Wire up the Elgato Cam Link 4K (USB HDMI capture) so it shows up as a v4l2 source for video calls / OBS

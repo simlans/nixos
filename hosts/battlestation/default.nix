@@ -19,6 +19,7 @@
     ../../modules/apps/vesktop.nix
     ../../modules/apps/signal.nix
     ../../modules/apps/spotify.nix
+    ../../modules/apps/obs-studio.nix
     ../../modules/gaming/steam.nix
     ../../modules/development/claude-code.nix
     ../../modules/development/docker.nix

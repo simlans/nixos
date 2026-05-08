@@ -10,5 +10,6 @@
     tree
     htop
     file
+    dnsutils
   ];
 }

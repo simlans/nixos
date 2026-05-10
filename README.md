@@ -155,10 +155,29 @@ sudoedit /etc/nixos/local/full-name
 sudo nixos-rebuild switch --flake ~/nixos-workstation#<host>
 ```
 
+### Editing secrets
+
+`secrets/personal.yaml` is age-encrypted; sops reads
+`~/.config/sops/age/keys.txt` automatically when the user pubkey is one of
+the recipients in `.sops.yaml`:
+
+```bash
+sops secrets/personal.yaml             # opens $EDITOR with plaintext, re-encrypts on save
+```
+
+Commit the resulting file. The encrypted form is what gets pushed.
+
+To add a new secret, declare it in `modules/system/sops.nix`
+(`sops.secrets."<key>" = { owner = "lansing"; };`), then reference its
+decrypted path from a NixOS module via `config.sops.secrets."<key>".path`
+or from a home-manager module via `osConfig.sops.secrets."<key>".path`.
+
 ## Layout
 
 ```
-flake.nix                                # inputs + nixosConfigurations.{battlestation,workstation} + apps.{tailscale-up,init-account}
+flake.nix                                # inputs + nixosConfigurations.{battlestation,workstation} + apps.{tailscale-up,init-account,sops-onboard-host}
+.sops.yaml                               # sops recipients (per-host SSH host pubkeys + per-user age pubkey)
+secrets/personal.yaml                    # sops-encrypted YAML — git/{author_name,author_email,github_user}
 disko/battlestation.nix                  # GPT: 1 GiB ESP (FAT32) + LUKS→ext4 root (desktop NVMe)
 disko/workstation.nix                    # same layout, separate file so #workstation has its own module path
 hosts/battlestation/
@@ -174,6 +193,7 @@ modules/
     network.nix                          # NetworkManager, bluetooth, firewall
     users.nix                            # user lansing (incl. docker group)
     openssh.nix                          # SSH server + authorized keys
+    sops.nix                             # sops-nix wrapper: defaultSopsFile + git/* secrets owned by lansing
     tailscale.nix                        # tailscaled (auth key bootstrapped post-install)
   desktop/
     niri.nix                             # Niri WM, greetd+ReGreet, xdg-portal
@@ -207,36 +227,91 @@ home/lansing/
 Once the system boots into Niri, finish the per-user bootstrap:
 
 1. **1Password GUI** — open the app, sign in to the personal account, then in
-   *Settings → Developer* enable both:
-   - **Use the SSH agent** — writes `~/.1password/agent.sock`, which
-     `home/lansing/onepassword.nix` already wires into `~/.ssh/config` and the
-     SSH-based git signing path. Git is configured to commit-sign by default in
-     `home/lansing/git.nix` — once the GUI agent is running, signed commits
-     just work.
-   - **Integrate with 1Password CLI** — lets `op` authenticate via the desktop
-     app (system auth / biometrics) instead of prompting for the master
-     password on every new shell. Without this, every fresh zsh (e.g. a new
-     VSCode integrated terminal) would re-run `op signin` because
-     `OP_SESSION_*` env vars don't cross process trees. With it, `op whoami`
-     queries the GUI daemon and the session is shared by every shell on the
-     desktop session.
+   *Settings → Developer* enable **Use the SSH agent**. That writes
+   `~/.1password/agent.sock`, which `home/lansing/onepassword.nix` wires into
+   `~/.ssh/config` and the SSH-based git signing path. Git is configured to
+   commit-sign by default in `home/lansing/development/git.nix` — once the GUI
+   agent is running, signed commits just work. Cross-repo `.envrc` files
+   (e.g. `~/Projects/homelab`) that still call `op-cache read 'op://...'`
+   additionally need *Integrate with 1Password CLI* enabled in the same dialog.
 
    The Niri session itself no longer depends on 1Password — the lock-screen
    real name is sourced from `/etc/passwd` (seeded at install time via
    `nix run .#init-account`), so noctalia-shell starts cleanly even if the
-   1P GUI hasn't been launched yet. The bullets above are still required
-   for SSH agent + signed commits + `home/lansing/development/git.nix`'s
-   `~/.envrc` (commit identity), but those are only needed once you start
-   pushing code, not for the desktop to come up.
+   1P GUI hasn't been launched yet. The bullets above are still required for
+   signed commits, but only once you start pushing code, not for the desktop
+   to come up.
 
-2. **Tailscale** — the daemon is on but the node isn't joined. Run the flake app
-   once; it prompts for the auth key and runs `tailscale up`:
+2. **sops-nix bootstrap** — this repo's commit identity (private name + email
+   + `GITHUB_USER`) lives in `secrets/personal.yaml`, age-encrypted. The first
+   `nixos-rebuild switch` on a fresh host succeeds even before sops is set up
+   — `sops-install-secrets.service` simply fails to decrypt because the host's
+   pubkey isn't yet in `.sops.yaml`, and `~/.envrc`'s `[ -r ... ]` guard skips
+   the export. New shells start cleanly, just without the env-vars.
+
+   On battlestation (the host that already has the personal age key in
+   `~/.config/sops/age/keys.txt`), one command does the whole onboarding:
+
    ```bash
-   nix run .#tailscale-up                                                    # interactive prompt
-   op read 'op://Private/tailscale-nixos-authkey/credential' | nix run .#tailscale-up  # piped
+   nix run .#sops-onboard-host -- lansing@<ssh-target> <flake-host>
+   #   <ssh-target>  anything `ssh` accepts — IP, hostname, Tailscale
+   #                 MagicDNS name, ~/.ssh/config alias.
+   #   <flake-host>  logical name; must match a nixosConfigurations.<name>
+   #                 entry in flake.nix (battlestation or workstation).
+   #
+   # Common case (DNS resolves the host's name): both identical, e.g.
+   nix run .#sops-onboard-host -- lansing@workstation workstation
    ```
-   Tailscale persists the node identity under `/var/lib/tailscale`, so this is a
-   one-shot per machine.
+
+   The script SSHs to the target, derives its age recipient from
+   `/etc/ssh/ssh_host_ed25519_key.pub`, inserts it into `.sops.yaml`, and
+   runs `sops updatekeys secrets/personal.yaml`. SSH works because
+   `modules/system/openssh.nix` bakes lansing's pubkey into every machine
+   and the 1P SSH agent serves the matching private key. The script is
+   idempotent — re-running with an already-onboarded `<flake-host>` is a
+   no-op.
+
+   Then commit + push + rebuild on the new host as the script's "Done. Now…"
+   output spells out:
+
+   ```bash
+   git -C ~/Projects/nixos-workstation commit -am "sops: onboard <flake-host>"
+   git -C ~/Projects/nixos-workstation push
+   ssh lansing@<ssh-target>
+     git -C ~/Projects/nixos-workstation pull
+     sudo nixos-rebuild switch --flake ~/Projects/nixos-workstation#<flake-host>
+   ```
+
+   After the rebuild, `/run/secrets/git/{author_name,author_email,github_user}`
+   exist (mode 0400, owner `lansing`) and new shells pick up
+   `GIT_AUTHOR_*`/`GITHUB_USER` from them.
+
+   First-time-only on a fresh dev host: the `~/.config/sops/age/keys.txt`
+   user key is generated once with
+   `nix shell nixpkgs#age -c age-keygen -o ~/.config/sops/age/keys.txt`,
+   the resulting pubkey (`age-keygen -y`) gets pasted into `.sops.yaml` as
+   `&user_<name>`, and `sops updatekeys secrets/personal.yaml` runs from a
+   machine whose key is already a recipient. Back the file up — without it
+   you can't edit secrets from this dev host.
+
+   If the new host has no network yet (so the SSH leg of `sops-onboard-host`
+   fails), run the conversion locally at its console and paste the
+   `age1...` line into `.sops.yaml` by hand, then `sops updatekeys` from
+   battlestation:
+   ```bash
+   nix shell nixpkgs#ssh-to-age -c sh -c 'ssh-to-age < /etc/ssh/ssh_host_ed25519_key.pub'
+   ```
+
+3. **Tailscale** — the daemon is on but the node isn't joined. Run the flake app
+   once:
+   ```bash
+   nix run .#tailscale-up                            # default: prints a browser login URL
+   echo "$tskey" | nix run .#tailscale-up            # headless: pipe a one-shot auth key
+   ```
+   The auth key is intentionally not stored anywhere — generate one ad-hoc at
+   <https://login.tailscale.com/admin/settings/keys> when you actually need
+   the headless variant. Tailscale persists the node identity under
+   `/var/lib/tailscale`, so this is a one-shot per machine.
 
 ## External displays (workstation)
 

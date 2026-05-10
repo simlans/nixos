@@ -1,0 +1,14 @@
+keys:
+  # Add new hosts via `nix run .#sops-onboard-host -- lansing@<host> <host>`.
+  # The script SSHs to the host, derives an age recipient from its
+  # `/etc/ssh/ssh_host_ed25519_key.pub`, inserts the entry below
+  # before the `&user_*` anchor, and re-encrypts `secrets/personal.yaml`.
+  - &host_battlestation age1jcrsptkkmmz4zt4smndm6m2ay97qcfv5wx54npf0rfkkgff9t9hqz53fwr
+  - &user_lansing       age15xgc2txt58sty9lzzkrudm7tu7ekylemt8e68y3fjkc8q8fqa3ms5evrlf
+
+creation_rules:
+  - path_regex: secrets/personal\.yaml$
+    key_groups:
+      - age:
+          - *host_battlestation
+          - *user_lansing

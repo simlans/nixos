@@ -7,6 +7,7 @@
     ../../modules/system/network.nix
     ../../modules/system/users.nix
     ../../modules/system/openssh.nix
+    ../../modules/system/sops.nix
     ../../modules/system/tailscale.nix
     ../../modules/desktop/niri.nix
     ../../modules/desktop/fonts.nix

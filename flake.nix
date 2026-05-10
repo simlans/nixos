@@ -57,6 +57,15 @@
       url = "github:noctalia-dev/noctalia-shell";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
+
+    # Encrypted-at-rest secrets. age-encrypted YAML in `secrets/`, decrypted
+    # at activation time into `/run/secrets/...` using the system's SSH host
+    # key. sops-nix doesn't maintain release-* branches; master targets
+    # current-stable nixpkgs and `flake.lock` pins a specific commit.
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs@{ self, nixpkgs, home-manager, disko, lanzaboote, git-hooks, noctalia, nixos-hardware, ... }:
@@ -112,12 +121,116 @@
       };
 
       apps.${system} = {
+        # `nix run .#sops-onboard-host -- <ssh-target> <name>` — bootstrap
+        # a new machine into sops in one shot. SSHs to <ssh-target>, reads
+        # its ed25519 SSH host pubkey, converts it to an age recipient,
+        # inserts it into `.sops.yaml` (right before the existing
+        # `&user_*` anchor + `*user_*` reference), and runs
+        # `sops updatekeys` so `secrets/personal.yaml` is re-encrypted
+        # for the new host. Idempotent: re-running with an already-
+        # onboarded `<name>` is a no-op. The local user needs:
+        #   - SSH access to the target (the 1P SSH agent serves the
+        #     authorized key declared in `modules/system/openssh.nix`),
+        #   - their personal age key in `~/.config/sops/age/keys.txt`
+        #     (one of the recipients in `.sops.yaml`).
+        # Run from anywhere inside the repo. Prints the remaining
+        # git/rebuild commands to stdout when it's done.
+        sops-onboard-host = {
+          type = "app";
+          program = "${pkgs.writeShellApplication {
+            name = "sops-onboard-host";
+            runtimeInputs = with pkgs; [
+              openssh
+              ssh-to-age
+              sops
+              gawk
+              gnugrep
+              coreutils
+              git
+            ];
+            text = ''
+              if [ $# -lt 2 ]; then
+                cat >&2 <<'USAGE'
+              usage: nix run .#sops-onboard-host -- <ssh-target> <flake-host>
+
+                <ssh-target>  network address for the pubkey fetch. Anything
+                              `ssh` accepts — IP, hostname, Tailscale MagicDNS,
+                              ~/.ssh/config alias. e.g. lansing@192.168.1.42,
+                              lansing@workstation.local, lansing@workstation.
+                <flake-host>  logical name. Becomes `&host_<flake-host>` in
+                              .sops.yaml and the `#<flake-host>` target of
+                              `nixos-rebuild --flake .#<flake-host>`. Must
+                              match a `nixosConfigurations.<name>` entry —
+                              currently `battlestation` or `workstation`.
+
+              Most-common case (DNS resolves the name): both args identical, e.g.
+                nix run .#sops-onboard-host -- lansing@workstation workstation
+              USAGE
+                exit 1
+              fi
+              target="$1"
+              name="$2"
+
+              repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+                echo "ERROR: not in a git repo (run from inside nixos-workstation/)" >&2
+                exit 1
+              }
+              cd "$repo_root"
+
+              [ -f .sops.yaml ] || { echo "ERROR: $repo_root/.sops.yaml not found" >&2; exit 1; }
+              [ -f secrets/personal.yaml ] || { echo "ERROR: $repo_root/secrets/personal.yaml not found" >&2; exit 1; }
+
+              if grep -q "&host_$name " .sops.yaml; then
+                echo "host_$name already present in .sops.yaml; nothing to do" >&2
+                exit 0
+              fi
+
+              # The awk insertion uses the user_* anchor/reference as the
+              # "before this line" marker — fail loudly if the convention
+              # has drifted, instead of silently producing a malformed file.
+              grep -q "^  - &user_" .sops.yaml \
+                || { echo "ERROR: .sops.yaml has no '&user_*' anchor to insert before" >&2; exit 1; }
+              grep -q "^          - \*user_" .sops.yaml \
+                || { echo "ERROR: .sops.yaml has no '*user_*' reference to insert before" >&2; exit 1; }
+
+              echo "==> fetching SSH host pubkey from $target" >&2
+              pubkey=$(ssh "$target" 'cat /etc/ssh/ssh_host_ed25519_key.pub' | ssh-to-age)
+              [ -n "$pubkey" ] || { echo "ERROR: empty age pubkey from $target" >&2; exit 1; }
+              echo "    $pubkey" >&2
+
+              echo "==> inserting host_$name into .sops.yaml" >&2
+              tmp=$(mktemp)
+              awk -v name="$name" -v pubkey="$pubkey" '
+                /^  - &user_/ && !did_key { print "  - &host_" name " " pubkey; did_key = 1 }
+                /^          - \*user_/ && !did_ref { print "          - *host_" name; did_ref = 1 }
+                { print }
+              ' .sops.yaml > "$tmp"
+              mv "$tmp" .sops.yaml
+
+              echo "==> re-encrypting secrets/personal.yaml" >&2
+              sops updatekeys --yes secrets/personal.yaml
+
+              cat <<EOF
+
+              Done. Now (locally):
+                git -C $repo_root commit -am "sops: onboard $name"
+                git -C $repo_root push
+
+              Then on $name:
+                git pull
+                sudo nixos-rebuild switch --flake ~/Projects/nixos-workstation#$name
+              EOF
+            '';
+          }}/bin/sops-onboard-host";
+        };
+
         # `nix run .#tailscale-up` — bootstrap this node into the tailnet.
-        # Reads the auth key either from a TTY prompt or from stdin, so both
-        # interactive use and `op read 'op://nixos/tailscale-nixos-authkey/credential'
-        #   | nix run .#tailscale-up` work. Calls `sudo tailscale up` with
-        # the standard --accept-dns --accept-routes flags. Single-shot:
-        # tailscale persists the node identity under /var/lib/tailscale.
+        # Default is browser-based auth: `tailscale up` prints a one-time
+        # login URL on first run. Optional: pipe an auth key on stdin
+        # (`echo "$key" | nix run .#tailscale-up`) to skip the browser.
+        # Calls `sudo tailscale up` with the standard --accept-dns
+        # --accept-routes flags. Single-shot: tailscale persists the node
+        # identity under /var/lib/tailscale.
         tailscale-up = {
           type = "app";
           program = "${pkgs.writeShellApplication {
@@ -126,16 +239,12 @@
             text = ''
               if [ ! -t 0 ]; then
                 key="$(cat)"
-              else
-                IFS= read -srp 'Tailscale auth key: ' key
-                printf '\n' >&2
-              fi
-              if [ -z "$key" ]; then
-                echo 'no auth key given, aborting' >&2
-                exit 1
+                exec sudo tailscale up \
+                  --auth-key="$key" \
+                  --accept-dns \
+                  --accept-routes
               fi
               exec sudo tailscale up \
-                --auth-key="$key" \
                 --accept-dns \
                 --accept-routes
             '';

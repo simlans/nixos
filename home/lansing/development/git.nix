@@ -1,4 +1,4 @@
-{ pkgs, lib, ... }:
+{ pkgs, lib, osConfig, ... }:
 let
   email = "55317770+simlans@users.noreply.github.com";
 
@@ -13,12 +13,18 @@ let
   # Source for ~/.envrc. Installed as a real file (not a /nix/store symlink)
   # because direnv touches the mtime on every load — a read-only symlink
   # target would error out with `chtimes: read-only file system` and abort.
+  # The `[ -r ... ]` guard makes this graceful on first boot before sops has
+  # been bootstrapped on the host: shells start cleanly, just without the
+  # GIT_AUTHOR_*/GITHUB_USER env-vars, until /run/secrets/git/* materialises.
   privateEnvrc = pkgs.writeText "private-identity-envrc" ''
-    export GIT_AUTHOR_NAME=$(op-cache read 'op://Private/GitHub/name')
-    export GIT_AUTHOR_EMAIL=$(op-cache read 'op://Private/GitHub/Commit-Mail')
-    export GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
-    export GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
-    export GITHUB_USER=$(op-cache read 'op://Private/GitHub/username')
+    if [ -r "${osConfig.sops.secrets."git/author_name".path}" ]; then
+      GIT_AUTHOR_NAME=$(cat "${osConfig.sops.secrets."git/author_name".path}")
+      GIT_AUTHOR_EMAIL=$(cat "${osConfig.sops.secrets."git/author_email".path}")
+      GITHUB_USER=$(cat "${osConfig.sops.secrets."git/github_user".path}")
+      export GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GITHUB_USER
+      export GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+      export GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+    fi
   '';
 in
 {
@@ -48,8 +54,9 @@ in
 
   # Signing config lives at ~/.gitconfig (overrides ~/.config/git/config per
   # git-config(1) precedence). Identity (user.name/email) is intentionally
-  # absent here — it flows in via ~/.envrc env vars from 1Password so the
-  # private email never lands in /nix/store.
+  # absent here — it flows in via ~/.envrc env vars from sops-decrypted
+  # files at /run/secrets/git/* so the private email never lands in
+  # /nix/store.
   home.file.".gitconfig".text = ''
     [user]
     	signingkey = ${signingPublicKey}

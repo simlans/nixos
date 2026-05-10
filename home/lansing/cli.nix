@@ -11,5 +11,6 @@
     htop
     file
     dnsutils
+    sops
   ];
 }

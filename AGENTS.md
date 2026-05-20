@@ -128,6 +128,13 @@ Rules:
 
 - **Do not add a `Co-Authored-By: Claude …` (or any other AI assistant) trailer to commits in this repo.** Commits go in under the human author's identity only. The history is public and the trailer adds nothing the diff doesn't already say. For Claude Code specifically the harness is silenced via `attribution.commit = ""` / `attribution.pr = ""` in `~/.claude/settings.json`, which is itself declared in `home/lansing/development/claude-code.nix`. Other agents (Cursor, Codex, …) honour this rule by reading AGENTS.md.
 
+## Branching
+
+- Any non-trivial change (new feature, refactor, anything spanning multiple files) goes on its own branch in a **separate git worktree**, so several features can be in flight in parallel without clobbering each other's `result` symlink, `.direnv/`, or half-applied edits. One-line fixes can stay on `main` in the primary checkout.
+- Create the worktree as a sibling directory: `git worktree add ../nixos-workstation-<feature> -b <feature>`. Branch names are short kebab-case describing the change (`add-syncthing`, `nvidia-tweaks`, `noctalia-clock-tweaks`).
+- Build and test inside the worktree (`sudo nixos-rebuild test --flake .#<host>`); each worktree gets its own `result` symlink, so concurrent builds don't fight.
+- After the branch is merged into `main` (or abandoned), remove the worktree: `git worktree remove ../nixos-workstation-<feature>` and delete the branch.
+
 ## Common tasks
 
 ### Add a system-wide package

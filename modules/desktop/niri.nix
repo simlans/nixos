@@ -71,6 +71,18 @@ in
             type = lib.types.nullOr lib.types.bool;
             default = null;
           };
+          defaultColumnWidthProportion = lib.mkOption {
+            type = lib.types.nullOr lib.types.float;
+            default = null;
+            description = ''
+              When set, the matched window opens at this proportion of
+              the output width (e.g. 0.15 for a slim sidebar-like
+              column). Rendered as niri's
+              `default-column-width { proportion X; }`. Only applies
+              at window creation — resizing the window afterwards is
+              still allowed.
+            '';
+          };
         };
       });
       default = [ ];

@@ -313,6 +313,54 @@ Once the system boots into Niri, finish the per-user bootstrap:
    the headless variant. Tailscale persists the node identity under
    `/var/lib/tailscale`, so this is a one-shot per machine.
 
+4. **Sunshine + Moonlight (battlestation only)** — the streaming host
+   (`services.sunshine`, configured in `modules/gaming/sunshine.nix`) is
+   already enabled, firewall ports are open, KMS capture and VA-API
+   encoding are wired up, and the user systemd unit auto-starts on
+   graphical login. Two one-time interactive steps remain:
+
+   1. **Seed the WebUI admin credentials via sops** — pick a strong
+      password, then:
+      ```bash
+      sops secrets/personal.yaml
+      ```
+      Add a `sunshine:` block alongside the existing `git:` block:
+      ```yaml
+      sunshine:
+        admin_user: lansing
+        admin_pass: <strong password>
+      ```
+      Commit + push, then on battlestation:
+      ```bash
+      sudo nixos-rebuild switch --flake ~/Projects/nixos-workstation#battlestation
+      ```
+      The user unit's `ExecStartPre` calls `sunshine --creds` on every
+      start to keep `~/.config/sunshine/sunshine_state.json` in sync with
+      the sops values — change the password later by editing the secret
+      and rebuilding.
+
+   2. **Pair each Moonlight client by PIN** — install a Moonlight client
+      on the target device (downloads at <https://moonlight-stream.org/>;
+      `moonlight-qt` for Linux/macOS/Windows, native apps for iOS/Android,
+      `moonlight-embedded` for older Smart-TV boxes). The battlestation
+      announces itself over mDNS / avahi, so the client lists it
+      automatically when on the same LAN; over Tailscale it's reachable
+      by MagicDNS without any additional firewall config (Sunshine binds
+      to all interfaces). Tap the host, the client displays a PIN, then
+      open `https://battlestation:47990/` (accept the self-signed cert),
+      log in with the sops creds, navigate to *PIN*, and enter the PIN.
+      Once per device, ever — Sunshine remembers the cert fingerprint.
+
+   Pre-configured Moonlight apps: **Desktop** (raw niri session for
+   remote control) and **Steam Big Picture** (auto-launches Steam in
+   couch-friendly mode). Add more entries by appending to
+   `services.sunshine.applications.apps` in `modules/gaming/sunshine.nix`.
+
+   Recovery: if the admin login ever gets wedged (e.g. the state file
+   gets corrupted), delete `~/.config/sunshine/sunshine_state.json` on
+   battlestation and run `systemctl --user restart sunshine`; the
+   ExecStartPre re-seeds from sops on the next start.
+
 ## External displays (workstation)
 
 Niri does per-output workspaces by default — each screen has an independent vertical workspace stack, and `Mod+Up`/`Mod+Down` only scrolls the workspaces of the currently focused output. No `workspaces { … }` block is needed to keep the laptop and an external monitor independent.

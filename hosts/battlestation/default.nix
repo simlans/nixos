@@ -23,6 +23,7 @@
     ../../modules/apps/obs-studio.nix
     ../../modules/gaming/steam.nix
     ../../modules/gaming/lutris.nix
+    ../../modules/gaming/sunshine.nix
     ../../modules/development/claude-code.nix
     ../../modules/development/docker.nix
     ../../modules/development/vscode.nix

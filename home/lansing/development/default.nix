@@ -7,6 +7,6 @@
     ./kubernetes
     ./neovim
     ./opentofu.nix
-    ./vscode.nix
+    ./vscodium.nix
   ];
 }

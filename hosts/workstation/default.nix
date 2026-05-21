@@ -26,7 +26,7 @@
     ../../modules/gaming/lutris.nix
     ../../modules/development/claude-code.nix
     ../../modules/development/docker.nix
-    ../../modules/development/vscode.nix
+    ../../modules/development/vscodium.nix
   ];
 
   networking.hostName = "workstation";

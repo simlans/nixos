@@ -25,6 +25,8 @@
     ../../modules/gaming/steam.nix
     ../../modules/gaming/lutris.nix
     ../../modules/development/claude-code.nix
+    ../../modules/development/pi-coding-agent.nix
+    ../../modules/development/nono.nix
     ../../modules/development/docker.nix
     ../../modules/development/vscode.nix
   ];

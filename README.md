@@ -204,7 +204,7 @@ modules/
     tools.nix                            # mako, wl-clipboard, grim, slurp, ...
   apps/                                  # firefox (+ 1P extension), onepassword (GUI+CLI), discord, signal, spotify, slack (workstation only)
   gaming/                                # steam (+ 32-bit graphics), lutris (+ umu-launcher → GE-Proton for non-Steam Windows games)
-  development/                           # claude-code (unstable), docker
+  development/                           # claude-code (unstable), pi-coding-agent (unstable), nono (sandbox, unstable), docker
 home/lansing/
   default.nix                            # Home Manager root: identity + imports
   cli.nix                                # ripgrep, fd, bat, eza, jq, yq, tree, htop, file
@@ -216,6 +216,8 @@ home/lansing/
     direnv.nix                           # direnv + nix-direnv
     fzf.nix                              # fzf + zsh integration (Ctrl+R history, Ctrl+T files, Alt+C cd)
   development/
+    claude-code.nix                      # ~/.claude/settings.json (model, perms, attribution off, tmux hooks)
+    pi-coding-agent.nix                  # ~/.pi/agent/{settings,models}.json + pinned skills bundle + nono profile + `spi` wrapper
     git.nix                              # git + gh + delta (SSH signing on by default)
     neovim/                              # neovim + LazyVim (lazy.nvim dev path → Nix-pinned plugins, treesitter parsers prebuilt, no mason)
     kubernetes/                          # kubectl, k9s, fluxcd + k9s skin
@@ -360,6 +362,66 @@ Once the system boots into Niri, finish the per-user bootstrap:
    gets corrupted), delete `~/.config/sunshine/sunshine_state.json` on
    battlestation and run `systemctl --user restart sunshine`; the
    ExecStartPre re-seeds from sops on the next start.
+
+5. **Pi coding agent + Cortecs** — the `pi-coding-agent` and `nono`
+   binaries are installed system-wide on both hosts; `~/.pi/agent/{settings,
+   models}.json`, the pinned Felix-Gladisch skills bundle, and the `nono`
+   sandbox profile come in via home-manager
+   (`home/lansing/development/pi-coding-agent.nix`). See
+   [`docs/pi-coding-agent.md`](docs/pi-coding-agent.md) for the full
+   bootstrap walkthrough (architecture, design decisions, Mac sops
+   access, troubleshooting). Three one-time steps remain after the
+   first rebuild on a host:
+
+   1. **Fork the skill + extension repos** to your own GitHub once
+      (`simlans/pi-skills` from `fgladisch/pi-skills`,
+      `simlans/pi-extensions` from `fgladisch/pi-extensions`), then pin
+      `simlans/pi-skills` by editing the placeholder `rev` + `hash` in
+      `home/lansing/development/pi-coding-agent.nix`:
+      ```bash
+      nix run nixpkgs#nix-prefetch-github -- simlans pi-skills --rev main
+      ```
+      Paste the resulting `rev`/`hash` and rebuild.
+
+   2. **Seed the Cortecs API key in sops.** Get the key from the Cortecs
+      dashboard, then:
+      ```bash
+      sops secrets/personal.yaml
+      ```
+      Add a `pi:` block alongside the existing `git:` / `sunshine:` blocks:
+      ```yaml
+      pi:
+        cortecs_api_key: <paste here>
+      ```
+      Commit + push + rebuild. The `apiKey: "!cat /run/secrets/pi/cortecs_api_key"`
+      directive in `~/.pi/agent/models.json` resolves the secret at request
+      time, so it never lives in an env var.
+
+   3. **Install the runtime extensions and third-party essentials.** Pi's
+      own package manager owns this state under `~/.pi/`, so it's not in
+      the flake. Run once per host:
+      ```bash
+      pi install npm:pi-mcp-adapter
+      pi install npm:pi-subagents
+      pi install npm:pi-web-access
+      pi install git:github.com/simlans/pi-extensions/packages/pi-bash-approval
+      pi install git:github.com/simlans/pi-extensions/packages/pi-persistent-history
+      pi install git:github.com/simlans/pi-extensions/packages/pi-welcome-message
+      pi install git:github.com/simlans/pi-extensions/packages/pi-user-select
+      ```
+
+   Then either `pi` (unsandboxed, full access) or `spi` (sandboxed via
+   nono, recommended) starts the agent. Use `/login` once to bind your
+   Claude subscription; the Cortecs models show up under `/model` (Ctrl+L)
+   automatically once the sops key is present.
+
+   First-activation gotcha: if `~/.pi/agent/settings.json` or
+   `~/.pi/agent/models.json` already exist as plain files (from a manual
+   `pi` invocation before this change landed), home-manager refuses to
+   overwrite them. Remove them first:
+   ```bash
+   rm -f ~/.pi/agent/settings.json ~/.pi/agent/models.json
+   ```
 
 ## External displays (workstation)
 

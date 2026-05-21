@@ -131,10 +131,14 @@
         # onboarded `<name>` is a no-op. The local user needs:
         #   - SSH access to the target (the 1P SSH agent serves the
         #     authorized key declared in `modules/system/openssh.nix`),
-        #   - their personal age key in `~/.config/sops/age/keys.txt`
-        #     (one of the recipients in `.sops.yaml`).
-        # Run from anywhere inside the repo. Prints the remaining
-        # git/rebuild commands to stdout when it's done.
+        #   - `SOPS_AGE_KEY` in the environment so this script's
+        #     `sops updatekeys` call can decrypt before re-encrypting.
+        #     The repo's `.envrc` exports it from 1Password
+        #     (`op://Private/nixos-sops-keyfile`), so running `nix run`
+        #     from inside the direnv'd repo shell is sufficient —
+        #     no on-disk `~/.config/sops/age/keys.txt` required.
+        # Run from inside the repo so direnv has loaded the env.
+        # Prints the remaining git/rebuild commands to stdout when done.
         sops-onboard-host = {
           type = "app";
           program = "${pkgs.writeShellApplication {

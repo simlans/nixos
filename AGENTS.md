@@ -77,6 +77,7 @@ modules/
     signal.nix                             # signal-desktop (system package)
     spotify.nix                            # spotify (system package, unfree)
     slack.nix                              # slack (system package, unfree) — only imported by workstation
+    opencloud.nix                          # opencloud-desktop (file sync client for OpenCloud servers)
   gaming/
     steam.nix                              # programs.steam + 32-bit graphics
     lutris.nix                             # lutris + umu-launcher (Lutris 0.5.20+ runs GE-Proton via UMU's Steam-runtime container; Wine-GE is EOL)

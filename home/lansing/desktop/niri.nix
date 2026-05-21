@@ -43,7 +43,9 @@ let
         ++ lib.optional (rule.openOnWorkspace != null)
             "    open-on-workspace \"${rule.openOnWorkspace}\""
         ++ lib.optional (rule.openFloating != null)
-            "    open-floating ${lib.boolToString rule.openFloating}";
+            "    open-floating ${lib.boolToString rule.openFloating}"
+        ++ lib.optional (rule.defaultColumnWidthProportion != null)
+            "    default-column-width { proportion ${toString rule.defaultColumnWidthProportion}; }";
     in
     "window-rule {\n" + lib.concatStringsSep "\n" lines + "\n}";
 

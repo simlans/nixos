@@ -157,9 +157,11 @@ sudo nixos-rebuild switch --flake ~/nixos-workstation#<host>
 
 ### Editing secrets
 
-`secrets/personal.yaml` is age-encrypted; sops reads
-`~/.config/sops/age/keys.txt` automatically when the user pubkey is one of
-the recipients in `.sops.yaml`:
+`secrets/personal.yaml` is age-encrypted. The repo's `.envrc` pulls the
+user age private key from 1Password (`op://Private/nixos-sops-keyfile`,
+a Document item) and exports it as `SOPS_AGE_KEY`, so `sops` works as
+long as you're inside the direnv'd repo shell and the 1P CLI is
+unlocked. No on-disk `~/.config/sops/age/keys.txt` required:
 
 ```bash
 sops secrets/personal.yaml             # opens $EDITOR with plaintext, re-encrypts on save
@@ -202,7 +204,7 @@ modules/
     fonts.nix                            # Noto / Fira / JetBrains Nerd Fonts
     audio.nix                            # PipeWire + rtkit
     tools.nix                            # mako, wl-clipboard, grim, slurp, ...
-  apps/                                  # firefox (+ 1P extension), onepassword (GUI+CLI), discord, signal, spotify, slack (workstation only)
+  apps/                                  # firefox (+ 1P extension), onepassword (GUI+CLI), discord, signal, spotify, opencloud, slack (workstation only)
   gaming/                                # steam (+ 32-bit graphics), lutris (+ umu-launcher → GE-Proton for non-Steam Windows games)
   development/                           # claude-code (unstable), pi-coding-agent (unstable), nono (sandbox, unstable), docker
 home/lansing/
@@ -251,8 +253,9 @@ Once the system boots into Niri, finish the per-user bootstrap:
    pubkey isn't yet in `.sops.yaml`, and `~/.envrc`'s `[ -r ... ]` guard skips
    the export. New shells start cleanly, just without the env-vars.
 
-   On battlestation (the host that already has the personal age key in
-   `~/.config/sops/age/keys.txt`), one command does the whole onboarding:
+   From any host where the repo's `.envrc` has loaded `SOPS_AGE_KEY`
+   (i.e. you're inside the direnv'd repo shell and the 1P CLI is
+   unlocked), one command does the whole onboarding:
 
    ```bash
    nix run .#sops-onboard-host -- lansing@<ssh-target> <flake-host>
@@ -287,14 +290,6 @@ Once the system boots into Niri, finish the per-user bootstrap:
    After the rebuild, `/run/secrets/git/{author_name,author_email,github_user}`
    exist (mode 0400, owner `lansing`) and new shells pick up
    `GIT_AUTHOR_*`/`GITHUB_USER` from them.
-
-   First-time-only on a fresh dev host: the `~/.config/sops/age/keys.txt`
-   user key is generated once with
-   `nix shell nixpkgs#age -c age-keygen -o ~/.config/sops/age/keys.txt`,
-   the resulting pubkey (`age-keygen -y`) gets pasted into `.sops.yaml` as
-   `&user_<name>`, and `sops updatekeys secrets/personal.yaml` runs from a
-   machine whose key is already a recipient. Back the file up — without it
-   you can't edit secrets from this dev host.
 
    If the new host has no network yet (so the SSH leg of `sops-onboard-host`
    fails), run the conversion locally at its console and paste the

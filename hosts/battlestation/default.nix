@@ -21,6 +21,7 @@
     ../../modules/apps/signal.nix
     ../../modules/apps/spotify.nix
     ../../modules/apps/obs-studio.nix
+    ../../modules/apps/opencloud.nix
     ../../modules/gaming/steam.nix
     ../../modules/gaming/lutris.nix
     ../../modules/gaming/sunshine.nix
@@ -28,7 +29,7 @@
     ../../modules/development/pi-coding-agent.nix
     ../../modules/development/nono.nix
     ../../modules/development/docker.nix
-    ../../modules/development/vscode.nix
+    ../../modules/development/vscodium.nix
   ];
 
   networking.hostName = "battlestation";

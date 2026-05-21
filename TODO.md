@@ -5,7 +5,7 @@
 - [ ] Switch font away from the current one to something with a finer style
 - [ ] Adjust tmux colors to match Catppuccin
 - [ ] Rename Tailscale host — "battlestation" is already taken by the Windows machine
-- [ ] Install OpenCloud
+- [x] Install OpenCloud
 - [ ] Install a suitable file manager
 - [x] Readd Mod+D besides Mod+Space to open app launcher
 - [x] Use Noctalia Login screen alternative

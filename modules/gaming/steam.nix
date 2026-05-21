@@ -19,5 +19,25 @@
       match.app-id = "^[Ss]team$";
       openOnWorkspace = "gaming";
     }
+    # Steam opens two windows: the main client and the friends list.
+    # Niri's global default-column-width is 0.5, so both land at 50/50.
+    # Force a sidebar layout: friends list slim on the left, main client
+    # filling the rest. Titles are matched on the German locale ("Freunde",
+    # "Freundesliste") and English ("Friends", "Friends List"); the main
+    # window's title is just "Steam".
+    {
+      match = {
+        app-id = "^[Ss]team$";
+        title = "^Steam$";
+      };
+      defaultColumnWidthProportion = 0.85;
+    }
+    {
+      match = {
+        app-id = "^[Ss]team$";
+        title = "^(Freunde|Freundesliste|Friends|Friends List)$";
+      };
+      defaultColumnWidthProportion = 0.15;
+    }
   ];
 }

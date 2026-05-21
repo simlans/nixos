@@ -204,7 +204,7 @@ modules/
     fonts.nix                            # Noto / Fira / JetBrains Nerd Fonts
     audio.nix                            # PipeWire + rtkit
     tools.nix                            # mako, wl-clipboard, grim, slurp, ...
-  apps/                                  # firefox (+ 1P extension), onepassword (GUI+CLI), discord, signal, spotify, slack (workstation only)
+  apps/                                  # firefox (+ 1P extension), onepassword (GUI+CLI), discord, signal, spotify, opencloud, slack (workstation only)
   gaming/                                # steam (+ 32-bit graphics), lutris (+ umu-launcher → GE-Proton for non-Steam Windows games)
   development/                           # claude-code (unstable), docker
 home/lansing/

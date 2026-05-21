@@ -22,6 +22,7 @@
     ../../modules/apps/signal.nix
     ../../modules/apps/spotify.nix
     ../../modules/apps/slack.nix
+    ../../modules/apps/opencloud.nix
     ../../modules/gaming/steam.nix
     ../../modules/gaming/lutris.nix
     ../../modules/development/claude-code.nix

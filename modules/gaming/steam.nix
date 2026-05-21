@@ -27,14 +27,14 @@
     # window's title is just "Steam".
     {
       match = {
-        app-id = "^Steam$";
+        app-id = "^[Ss]team$";
         title = "^Steam$";
       };
       defaultColumnWidthProportion = 0.85;
     }
     {
       match = {
-        app-id = "^Steam$";
+        app-id = "^[Ss]team$";
         title = "^(Freunde|Freundesliste|Friends|Friends List)$";
       };
       defaultColumnWidthProportion = 0.15;

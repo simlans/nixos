@@ -219,7 +219,7 @@ home/lansing/
     fzf.nix                              # fzf + zsh integration (Ctrl+R history, Ctrl+T files, Alt+C cd)
   development/
     claude-code.nix                      # ~/.claude/settings.json (model, perms, attribution off, tmux hooks)
-    pi-coding-agent.nix                  # ~/.pi/agent/{settings,models}.json + pinned skills bundle + nono profile + `spi` wrapper
+    pi-coding-agent.nix                  # ~/.pi/agent/{settings,models}.json + pi-subagents async config + pinned skills bundle + nono profile + `spi` wrapper
     git.nix                              # git + gh + delta (SSH signing on by default)
     neovim/                              # neovim + LazyVim (lazy.nvim dev path → Nix-pinned plugins, treesitter parsers prebuilt, no mason)
     kubernetes/                          # kubectl, k9s, fluxcd + k9s skin
@@ -360,7 +360,8 @@ Once the system boots into Niri, finish the per-user bootstrap:
 
 5. **Pi coding agent + Cortecs** — the `pi-coding-agent` and `nono`
    binaries are installed system-wide on both hosts; `~/.pi/agent/{settings,
-   models}.json`, the pinned `simlans/pi-skills` skills bundle, and the `nono`
+   models}.json`, the `pi-subagents` background-execution config, the pinned
+   `simlans/pi-skills` skills bundle, and the `nono`
    sandbox profile come in via home-manager
    (`home/lansing/development/pi-coding-agent.nix`). See
    [`docs/pi-coding-agent.md`](docs/pi-coding-agent.md) for the full
@@ -412,12 +413,13 @@ Once the system boots into Niri, finish the per-user bootstrap:
    default, Devstral 2 2512 also selectable) and your Claude models show up
    under `/model` (Ctrl+L) once the sops key is present and you've logged in.
 
-   First-activation gotcha: if `~/.pi/agent/settings.json` or
-   `~/.pi/agent/models.json` already exist as plain files (from a manual
-   `pi` invocation before this change landed), home-manager refuses to
-   overwrite them. Remove them first:
+   First-activation gotcha: if `~/.pi/agent/settings.json`,
+   `~/.pi/agent/models.json`, or `~/.pi/agent/extensions/subagent/config.json`
+   already exist as plain files (from a manual `pi` invocation before this
+   change landed), home-manager refuses to overwrite them. Remove them first:
    ```bash
-   rm -f ~/.pi/agent/settings.json ~/.pi/agent/models.json
+   rm -f ~/.pi/agent/settings.json ~/.pi/agent/models.json \
+     ~/.pi/agent/extensions/subagent/config.json
    ```
 
 ## External displays (workstation)

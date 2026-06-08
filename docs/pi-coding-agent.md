@@ -21,6 +21,7 @@ change**, and this doc kept paired with
 |---|---|---|
 | models / providers | `home.file.".pi/agent/models.json"` | `~/.pi/agent/models.json` |
 | settings | `home.file.".pi/agent/settings.json"` | `~/.pi/agent/settings.json` |
+| subagent run-mode (async) | `home.file.".pi/agent/extensions/subagent/config.json"` | `~/.pi/agent/extensions/subagent/config.json` |
 | skills pin | `piSkills.rev` / `hash` | `git checkout <rev>` of `simlans/pi-skills` |
 | nono profile | `piNonoProfile` (paths differ per platform) | `~/.config/nono/profiles/pi-dev.json` |
 | `spi` wrapper | `writeShellScriptBin "spi"` | `~/.local/bin/spi` |

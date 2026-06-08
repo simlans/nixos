@@ -199,6 +199,19 @@ in
     };
   };
 
+  # pi-subagents background execution. This optional file is the *only* place
+  # the extension reads async/run-mode config from — `settings.json`'s
+  # `subagents` block only takes `agentOverrides`/`disableBuiltins`, not this.
+  # `asyncByDefault` makes delegated child runs execute in the background, so
+  # the main agent (GLM-4.6) keeps working while the cheap recon/worker
+  # subagents run — the point of routing routine work off the main model in the
+  # first place. Same read-only-symlink + first-activation caveat as the JSON
+  # files above (remove any pre-existing real file before the first switch).
+  # KEEP IN SYNC with the Mac (docs/pi-coding-agent-macos.md).
+  home.file.".pi/agent/extensions/subagent/config.json".text = builtins.toJSON {
+    asyncByDefault = true;
+  };
+
   # Cortecs custom provider (OpenAI-compatible). `apiKey: "!…"` is Pi's
   # shell-command syntax — resolved per-request from the sops-decrypted
   # file, no env-var leak. The cortecs base URL is documented at

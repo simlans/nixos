@@ -31,6 +31,7 @@ What lives where:
 | `spi` wrapper | `~/.local/bin/spi` | `writeShellScriptBin "spi"` |
 | extensions (unpinned) | `pi install npm:…` once, `pi update` to refresh | `piPackages` → `settings.json` + `pi-extensions` service |
 | subagent models | `subagents.agentOverrides` in `settings.json` | same block in `home.file.".pi/agent/settings.json"` |
+| subagent run-mode (async) | `~/.pi/agent/extensions/subagent/config.json` | `home.file.".pi/agent/extensions/subagent/config.json"` |
 | rpiv-i18n locale | `~/.config/rpiv-i18n/locale.json` | `xdg.configFile."rpiv-i18n/locale.json"` |
 
 Two things genuinely *can't* be byte-identical and that's expected: the Cortecs
@@ -482,6 +483,29 @@ reasoning ones). Override a single run instead with
 `/run reviewer[model=cortecs/qwen3-coder-next:high] "…"`. List live prices with
 `curl -s https://api.cortecs.ai/v1/models -H "Authorization: Bearer $(cat
 ~/.pi/agent/cortecs_api_key)" | jq '.data[] | {id, pricing}'`.
+
+## 11. Subagent background execution
+
+`asyncByDefault` makes delegated subagents run in the background by default, so
+the main agent keeps working while `scout`/`worker`/`reviewer` run instead of
+blocking the turn. `pi-subagents` reads this from its **own** config file — *not*
+`settings.json`'s `subagents` block (that only takes `agentOverrides`). On NixOS
+it's the read-only `home.file.".pi/agent/extensions/subagent/config.json"`; on
+the Mac it's a plain file:
+
+```bash
+mkdir -p ~/.pi/agent/extensions/subagent
+cat > ~/.pi/agent/extensions/subagent/config.json <<'JSON'
+{
+  "asyncByDefault": true
+}
+JSON
+```
+
+The extension also accepts `forceTopLevelAsync`, `parallel.{maxTasks,concurrency}`
+(default 8 / 4), `maxSubagentDepth`, and `intercomBridge` here — defaults are
+fine; add them only to tune fan-out limits. Keep this file identical on the
+NixOS hosts (the nix `home.file` above renders the same JSON).
 
 ## Verify
 

@@ -358,8 +358,8 @@ Once the system boots into Niri, finish the per-user bootstrap:
    battlestation and run `systemctl --user restart sunshine`; the
    ExecStartPre re-seeds from sops on the next start.
 
-5. **Pi coding agent + Cortecs** — the `pi-coding-agent` and `nono`
-   binaries are installed system-wide on both hosts; `~/.pi/agent/{settings,
+5. **Pi coding agent (Cortecs + local Ollama)** — the `pi-coding-agent` and
+   `nono` binaries are installed system-wide on both hosts; `~/.pi/agent/{settings,
    models}.json`, the `pi-subagents` background-execution config, the pinned
    `simlans/pi-skills` skills bundle, and the `nono`
    sandbox profile come in via home-manager
@@ -409,9 +409,18 @@ Once the system boots into Niri, finish the per-user bootstrap:
    work (Pi has no git-monorepo-subpath support).
 
    Then either `pi` (unsandboxed, full access) or `spi` (sandboxed via
-   nono, recommended) starts the agent. The Cortecs models (GLM-4.6 by
-   default, Devstral 2 2512 also selectable) and your Claude models show up
-   under `/model` (Ctrl+L) once the sops key is present and you've logged in.
+   nono, recommended) starts the agent. The **default model is the local
+   Ollama `qwen3-coder-next-64k`** (offline, private; `services.ollama` runs on
+   both hosts via `modules/development/ollama.nix`). On each host that should
+   run it, pull + context-tag the model first (`ollama pull qwen3-coder-next`
+   plus the `num_ctx` derive command shown in `modules/development/ollama.nix`);
+   it needs ~53 GB RAM, so the laptop can't run it — override `defaultModel` to
+   a Cortecs model there, or pick one via `/model`. The Cortecs models
+   (`glm-4.6`, Devstral 2 2512, the Qwen3/DeepSeek subagent fleet) and your
+   Claude models also appear under `/model` (Ctrl+L) once the sops key is
+   present and you've logged in. See
+   [`docs/pi-coding-agent.md`](docs/pi-coding-agent.md)'s "Local models
+   (Ollama)" section for the details (num_ctx, VRAM, ROCm).
 
    First-activation gotcha: if `~/.pi/agent/settings.json`,
    `~/.pi/agent/models.json`, or `~/.pi/agent/extensions/subagent/config.json`

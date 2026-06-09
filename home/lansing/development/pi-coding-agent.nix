@@ -24,7 +24,8 @@ let
   # refreshes to newest (we want current over frozen). This list is the single
   # source of truth. Two unscoped essentials (`pi-subagents`, `pi-web-access`,
   # nicobailon), one `@fgladisch/...` (Felix Gladisch's `pi-persistent-history`),
-  # and the three `@juicesharp/rpiv-*` ("rpiv") set. NB: all ship on **npm**,
+  # one `@zosmaai/pi-llm-wiki` (LLM-queryable wiki), and the three
+  # `@juicesharp/rpiv-*` ("rpiv") set. NB: all ship on **npm**,
   # NOT installable via the old `git:github.com/.../pi-extensions/packages/<name>`
   # syntax — Pi has no git-monorepo subpath support (so the `simlans/pi-extensions`
   # fork is not needed). KEEP IN SYNC with the Mac's ~/.pi/agent/settings.json
@@ -38,6 +39,7 @@ let
     "npm:pi-subagents"
     "npm:pi-web-access"
     "npm:@fgladisch/pi-persistent-history"
+    "npm:@zosmaai/pi-llm-wiki"
     "npm:@juicesharp/rpiv-ask-user-question"
     "npm:@juicesharp/rpiv-todo"
     "npm:@juicesharp/rpiv-i18n"
@@ -102,6 +104,13 @@ let
     network = {
       network_profile = "developer";
       allow_domain = [ "api.cortecs.ai" ];
+      # Reach a local Ollama (127.0.0.1:11434) from inside the sandbox. nono's
+      # NO_PROXY already lists localhost, so Pi/Node connects direct (bypassing
+      # the proxy); this opens the raw localhost socket at the Landlock layer.
+      # Linux needs the explicit port number; macOS instead uses `0` (= all of
+      # localhost:* outbound — per-port doesn't work there), so the Mac's
+      # pi-dev.json carries `open_port: [0]`. KEEP IN SYNC with the Mac.
+      open_port = [ 11434 ];
     };
   };
 in
@@ -148,30 +157,35 @@ in
     enableInstallTelemetry = false;
     packages = piPackages;
 
-    # Default model, set declaratively. On the Mac you'd pick this once via
-    # Ctrl+L and it sticks (mutable file); here settings.json is a read-only
-    # /nix/store symlink, so an in-app pick can't persist — without these keys
-    # Pi would fall back to whatever /login provided (Claude). GLM-4.6 was the
-    # main model (disciplined in tool-loops, cheaper than Devstral), but it is
-    # unusable here: glm-4.6 on Cortecs (AtlasCloud backend) returns TRUNCATED
-    # tool-call function names ("ask_user_question" → "ask_u"), in both stream
-    # and non-stream mode — verified against the raw API; Qwen models on the
-    # same provider are unaffected. So any tool/extension with a multi-token
-    # name (ask_user_question, …) breaks under glm-4.6. Its first replacement,
-    # qwen3-coder-next, gets names right but serialises NESTED tool arguments as
-    # JSON strings (breaks ask_user_question/write), so the main model is now
-    # qwen3-next-80b-a3b-thinking — verified correct on both tool names and
-    # nested arguments, EU-sovereign. Revert to glm-4.6 once Cortecs fixes the
-    # truncation. KEEP IN SYNC with the Mac.
-    defaultProvider = "cortecs";
-    defaultModel = "qwen3-next-80b-a3b-thinking";
+    # Default model: the LOCAL Ollama coding model `qwen3-coder-next-64k`
+    # (derived from `qwen3-coder-next`, num_ctx 65536 — see the ollama provider
+    # below + modules/development/ollama.nix). Offline, private, zero-cost, and
+    # tool-call-correct: the local build handles both flat AND nested tool
+    # arguments — verified, `ask_user_question`/`write` work — unlike the Cortecs
+    # `qwen3-coder-next` (stringifies nested args) and unlike `glm-4.6` (truncates
+    # tool-call names on Cortecs, see docs/cortecs-glm46-toolname-bug.md). Cortecs
+    # models stay selectable via /model: `qwen3-next-80b-a3b-thinking` is the
+    # cloud fallback (correct on names + nested args), `glm-4.6` the intended
+    # steady state once Cortecs fixes its bug.
+    #
+    # REQUIRES the derived model present on each host — `ollama pull
+    # qwen3-coder-next` + the num_ctx tag (command in ollama.nix) — and ~53 GB
+    # of memory resident. Fits a 64 GB Mac/box; on battlestation's 16 GB-VRAM
+    # RX 9070 XT it only *partially* offloads (slower), and a host with < ~64 GB
+    # RAM can't load it at all — there, add a per-host override
+    # (`home-manager.users.lansing...defaultModel`) pointing back at a Cortecs
+    # model, or pick one via /model. On NixOS settings.json is a read-only
+    # symlink, so without these keys Pi falls back to /login (Claude).
+    # KEEP IN SYNC with the Mac.
+    defaultProvider = "ollama";
+    defaultModel = "qwen3-coder-next-64k";
     defaultThinkingLevel = "medium";
 
     # pi-subagents per-role model overrides. Builtin subagents otherwise
-    # inherit `defaultModel` (GLM-4.6) — fine, but wasteful: the cheap recon
+    # inherit `defaultModel` (now the local `qwen3-coder-next-64k`) — fine, but wasteful: the cheap recon
     # roles don't need a 0.355/1.553 €/Mtok model. We pin each of the eight
     # builtins to the cheapest model that's sensible for its job (see the
-    # models.json allow-list above for prices). GLM-4.6 stays the *main* model;
+    # models.json allow-list above for prices). The local qwen stays the *main* model;
     # these only affect delegated child runs. Refs use the explicit
     # `cortecs/<id>` form (provider/model); bare IDs would also resolve since
     # these models are cortecs-unique, but the prefix is unambiguous.
@@ -301,6 +315,42 @@ in
           id = "deepseek-v3.2"; # 0.266/0.444 — oracle (distinct lineage = real 2nd opinion)
           name = "DeepSeek V3.2 (Cortecs)";
           contextWindow = 163840;
+        }
+      ];
+    };
+
+    # Local Ollama provider (OpenAI-compatible at /v1). Mac-only in practice:
+    # Ollama runs on the laptop; on the NixOS hosts nothing listens on
+    # localhost:11434 until Ollama is installed there too, so these models
+    # simply won't resolve under /model (harmless). baseUrl uses 127.0.0.1, not
+    # "localhost" — Ollama binds IPv4 only and a ::1 first-try adds a refused
+    # round-trip. apiKey is a literal dummy ("ollama"): Ollama ignores auth but
+    # Pi requires the field. Each id is a *derived* Ollama tag (Modelfile
+    # `FROM <base>` + `PARAMETER num_ctx <n>`): the OpenAI /v1 endpoint can't
+    # pass num_ctx per request and Ollama otherwise caps context at its 4096
+    # default, so the derived tag bakes the real window in. Running these under
+    # the sandbox (spi) needs `open_port` in piNonoProfile (see above). KEEP IN
+    # SYNC with the Mac's ~/.pi/agent/models.json (docs/pi-coding-agent-macos.md).
+    providers.ollama = {
+      baseUrl = "http://127.0.0.1:11434/v1";
+      api = "openai-completions";
+      apiKey = "ollama";
+      authHeader = true;
+      models = [
+        {
+          id = "qwen3-coder-next-64k"; # derived: `FROM qwen3-coder-next` (q4_K_M, 52GB) + num_ctx 65536
+          # Best local coding-agent model that fits 64 GB (q8_0 is 85 GB, too big).
+          # Context capped at 64K, not the model's 256K max: 52 GB of weights leave
+          # only a few GB for the KV cache before inference spills off the GPU —
+          # 64K stays 100% GPU/fast and is ample for agentic coding. Bump num_ctx
+          # (and re-derive the tag) if a footprint check shows headroom.
+          name = "Qwen3 Coder Next 64k (Ollama, lokal)";
+          contextWindow = 65536;
+        }
+        {
+          id = "gemma4-12b-256k"; # derived: `FROM gemma4:12b` + num_ctx 262144
+          name = "Gemma 4 12B 256k (Ollama, lokal)";
+          contextWindow = 262144;
         }
       ];
     };

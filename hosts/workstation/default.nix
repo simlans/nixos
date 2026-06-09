@@ -28,6 +28,7 @@
     ../../modules/development/claude-code.nix
     ../../modules/development/pi-coding-agent.nix
     ../../modules/development/nono.nix
+    ../../modules/development/ollama.nix
     ../../modules/development/docker.nix
     ../../modules/development/vscodium.nix
   ];

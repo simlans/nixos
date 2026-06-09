@@ -25,6 +25,7 @@ What lives where:
 | Concern | macOS (plain files, this doc) | NixOS (`home/lansing/development/pi-coding-agent.nix`) |
 |---|---|---|
 | models / providers | `~/.pi/agent/models.json` | `home.file.".pi/agent/models.json"` |
+| local models / Ollama | the Ollama.app + `providers.ollama` in `~/.pi/agent/models.json` | `services.ollama` (`modules/development/ollama.nix`) + `providers.ollama` |
 | settings | `~/.pi/agent/settings.json` | `home.file.".pi/agent/settings.json"` |
 | skills pin | `git checkout <rev>` of `simlans/pi-skills` | `piSkills.rev` / `hash` |
 | nono profile | `~/.config/nono/profiles/pi-dev.json` | `piNonoProfile` (paths differ per platform) |
@@ -158,9 +159,13 @@ Cortecs only serves EU-hosted, GDPR-compliant ("sovereign") models, so the
 catalog is a curated subset — not every model you'd find elsewhere exists
 here. The `models` array below is effectively your **allow-list**: only the
 IDs you list show up under `/model`, so keep it to the European models you
-actually want. The main agent model is Z.ai's **GLM-4.6** (`glm-4.6`) — cheaper
-than Devstral on both axes and far steadier in agentic tool-loops; **Devstral 2
-2512** (`devstral-2512`) stays selectable for comparison. The rest of the array
+actually want. (The actual **default** model is the *local* Ollama
+`qwen3-coder-next-64k` — see [Local models via Ollama](#local-models-via-ollama);
+these Cortecs entries are the cloud options under `/model`.) Among the Cortecs
+models, Z.ai's **GLM-4.6** (`glm-4.6`) is the intended steady-state main model —
+cheaper than Devstral, steadier in tool-loops, but currently hit by a tool-name
+bug (Step 9), so `qwen3-next-80b-a3b-thinking` is the working cloud fallback;
+**Devstral 2 2512** (`devstral-2512`) stays selectable for comparison. The rest of the array
 is the open-weight Qwen3/DeepSeek fleet the subagents are pinned to (Step 10) —
 every model a `subagents.agentOverrides` entry references must be listed here or
 it won't resolve. Reproduce the full list from the nix file
@@ -200,6 +205,10 @@ add more to the allow-list, query the catalog —
 `curl -s https://api.cortecs.ai/v1/models -H "Authorization: Bearer $(cat ~/.pi/agent/cortecs_api_key)" | jq '.data[].id'`
 — or browse <https://cortecs.ai/serverlessModels>, then add the IDs you want
 to the `models` array. The default model itself is picked in Step 9.
+
+For a *local*, offline provider alongside Cortecs, see
+[Local models via Ollama](#local-models-via-ollama) below — it adds a second
+`providers.ollama` block to this same file.
 
 ## 6. Add the skills bundle
 
@@ -267,7 +276,8 @@ nono profile init pi-dev --extends node-dev
   },
   "network": {
     "network_profile": "developer",
-    "allow_domain": ["api.cortecs.ai"]
+    "allow_domain": ["api.cortecs.ai"],
+    "open_port": [0]
   }
 }
 ```
@@ -327,6 +337,13 @@ Notes:
   endpoints (Anthropic and OpenAI included); `allow_domain` adds Cortecs on top.
   On macOS nono enforces this via a localhost proxy — it applies to proxy-aware
   tools; anything that ignores the proxy is blocked outright.
+- **`open_port: [0]` opens localhost for the local Ollama provider**
+  (`127.0.0.1:11434`, see [Local models via Ollama](#local-models-via-ollama)).
+  macOS only accepts `0` here (= all `localhost:*` outbound); a specific port
+  like `[11434]` does **not** work on macOS (tested) — the Linux profile uses
+  the explicit `11434` instead. nono's `NO_PROXY` already lists localhost so Pi
+  connects direct; `open_port` is what lets the Seatbelt layer allow that
+  socket. Omit it and `spi` can't reach Ollama (plain `pi` still can).
 - **No `commands.deny`.** nono deprecated it (startup-only — child processes
   bypass it, so it's not real security) and warns about it on every run. We
   rely on filesystem/network policy instead. On the NixOS side Docker is gated
@@ -451,12 +468,15 @@ extensions, it's intentionally **not** synced or Nix-managed. Run `/login`
 *configuration* (`models.json`, `settings.json`, skills, nono profile); the
 *credentials and state* stay per-machine.
 
-Then pick the model: run `pi`, press **Ctrl+L**, and select
-**GLM-4.6 (Cortecs)** (the default agent model; Devstral 2 2512 stays selectable
-for comparison). To offer more European models, add their IDs to
-the `models` array in `~/.pi/agent/models.json` (Step 5 shows how to list the
-catalog). On macOS this file is mutable, so edits just stick — no rebuild
-needed.
+The **default model is the local Ollama `qwen3-coder-next-64k`**
+(`defaultProvider`/`defaultModel` in `settings.json`) — set it up under
+[Local models via Ollama](#local-models-via-ollama). To use a Cortecs model
+instead, run `pi`, press **Ctrl+L**, and pick one — e.g.
+`qwen3-next-80b-a3b-thinking` (the working cloud option) or **GLM-4.6 (Cortecs)**
+(the intended steady-state main model, currently hit by a tool-name bug). To
+offer more European models, add their IDs to the `models` array in
+`~/.pi/agent/models.json` (Step 5 shows how to list the catalog). On macOS this
+file is mutable, so edits just stick — no rebuild needed.
 
 ## 10. Subagent model overrides
 
@@ -510,6 +530,62 @@ The extension also accepts `forceTopLevelAsync`, `parallel.{maxTasks,concurrency
 (default 8 / 4), `maxSubagentDepth`, and `intercomBridge` here — defaults are
 fine; add them only to tune fan-out limits. Keep this file identical on the
 NixOS hosts (the nix `home.file` above renders the same JSON).
+
+## Local models via Ollama
+
+A **local Ollama** server for offline / zero-cost inference — and the source of
+Pi's **default model** (`qwen3-coder-next-64k`; `defaultProvider = "ollama"` /
+`defaultModel` in `~/.pi/agent/settings.json`). Same `api: "openai-completions"`
+shape as Cortecs, just pointed at localhost. Mirrors the NixOS `services.ollama`
+module (main doc's "Local models (Ollama)") — keep the model IDs identical.
+
+**1. Install & run Ollama.** The macOS app (or `brew install ollama`) runs a
+server on `127.0.0.1:11434`.
+
+**2. Pull a model and bake a real context window.** Ollama caps context at
+**4096 tokens by default** and silently truncates the front of anything longer
+— fatal for a coding agent (it loses its system prompt + tools). The OpenAI
+`/v1` endpoint can't pass `num_ctx` per request, so derive a tag that bakes it:
+
+```bash
+ollama pull qwen3-coder-next
+printf 'FROM qwen3-coder-next\nPARAMETER num_ctx 65536\n' | ollama create qwen3-coder-next-64k -f -
+# generalist fallback:
+ollama pull gemma4:12b
+printf 'FROM gemma4:12b\nPARAMETER num_ctx 262144\n' | ollama create gemma4-12b-256k -f -
+```
+
+(64K for the ~52 GB qwen, not its full 256K: on a 64 GB Mac the KV cache for
+256K would push it off the GPU. Check with `ollama ps` — keep it `100% GPU`.
+gemma is only ~7.6 GB, so its full 256K fits trivially.)
+
+**3. Add the `ollama` provider to `~/.pi/agent/models.json`**, alongside
+`cortecs`:
+
+```jsonc
+"ollama": {
+  "baseUrl": "http://127.0.0.1:11434/v1",   // 127.0.0.1, not "localhost" (Ollama is IPv4-only)
+  "api": "openai-completions",
+  "apiKey": "ollama",                         // literal dummy — Ollama ignores auth, Pi wants the field
+  "authHeader": true,
+  "models": [
+    { "id": "qwen3-coder-next-64k", "name": "Qwen3 Coder Next 64k (Ollama, lokal)", "contextWindow": 65536 },
+    { "id": "gemma4-12b-256k",      "name": "Gemma 4 12B 256k (Ollama, lokal)",     "contextWindow": 262144 }
+  ]
+}
+```
+
+The `id`s are the **derived** tags from step 2, and `contextWindow` must match
+their baked `num_ctx`. Now Ctrl+L lists the local models next to Cortecs/Claude.
+
+**4. Sandbox (`spi`).** Reaching localhost from inside nono needs
+`open_port: [0]` in `~/.config/nono/profiles/pi-dev.json` (Step 7) — macOS only
+accepts `0` (all `localhost:*`), unlike the Linux profile's explicit `11434`.
+Plain `pi` reaches Ollama without it.
+
+The Ollama server and the pulled/derived models are **per-machine runtime
+state** (like `auth.json`) — not synced. Only the `providers.ollama` *config*
+in `models.json` is mirrored to/from the NixOS hosts.
 
 ## Verify
 
@@ -574,6 +650,18 @@ spi -p 'cat /etc/passwd'                # runs, but writes outside the cwd/allow
   no longer strands the remote on the blocked SSH transport — tidy it up anyway
   with `git remote set-url origin https://github.com/<owner>/<repo>.git` if you
   like. See the "No `git push` / `gh` auth" note in Step 7 for the rationale.
+- **Local Ollama model forgets its instructions / behaves erratically** — Ollama
+  truncated the context. `models.json` must point at the *derived* `…-64k` /
+  `…-256k` tag, not the bare tag (which defaults to 4096 tokens). Confirm with
+  `ollama show <tag> --parameters | grep num_ctx`. See
+  [Local models via Ollama](#local-models-via-ollama).
+- **Local model unusably slow / `ollama ps` shows a CPU+GPU split** — the
+  weights plus the KV cache for `num_ctx` exceed unified memory and spilled to
+  CPU. Lower `num_ctx` in the derived tag (re-run `ollama create`) or pick a
+  smaller model; aim for `100% GPU` in `ollama ps`.
+- **Ollama reachable under plain `pi` but not `spi`** — the nono profile is
+  missing `open_port: [0]` (macOS needs `0`, not a specific port). Add it
+  (Step 7), `nono profile validate`, retry.
 
 ## References
 

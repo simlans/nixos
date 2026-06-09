@@ -26,20 +26,25 @@ change**, and this doc kept paired with
 | nono profile | `piNonoProfile` (paths differ per platform) | `~/.config/nono/profiles/pi-dev.json` |
 | `spi` wrapper | `writeShellScriptBin "spi"` | `~/.local/bin/spi` |
 | extensions (unpinned) | `piPackages` → `settings.json` + `pi-extensions` service runs `pi update --extensions` | `pi install npm:…` once, then `pi update` to refresh |
+| local models / Ollama | `modules/development/ollama.nix` (`services.ollama`) + `providers.ollama` in `models.json` | the Ollama.app + `providers.ollama` in `~/.pi/agent/models.json` |
 
 The `nono` profile uses the same schema and the same `extends: node-dev` base
 on both platforms (current nono schema: `groups.include` + `network.allow_domain`).
-Only two things legitimately differ: the Cortecs key source (sops-nix here vs.
-local file / 1Password on the Mac) and the profile's filesystem paths plus cache
+A few things legitimately differ: the Cortecs key source (sops-nix here vs.
+local file / 1Password on the Mac); the profile's filesystem paths plus cache
 group (NixOS store + `/run/secrets` + docker-sock deny + `user_caches_linux`,
-Landlock; vs. `$HOME/...` + `user_caches_macos`, Seatbelt). Model IDs, skill
-revision, the `node-dev` base, denied commands, and the allowed domain should
-match. Current shared models: Cortecs EU-sovereign only — `glm-4.6` (Z.ai
-GLM-4.6) is the main agent's model, with `devstral-2512` (Mistral Devstral 2
-2512) also selectable, plus a small fleet of open-weight Qwen3/DeepSeek models
-the `pi-subagents` builtins are pinned to
-(see "Subagent model overrides" in the macOS doc and `subagents.agentOverrides`
-in `settings.json`).
+Landlock; vs. `$HOME/...` + `user_caches_macos`, Seatbelt); and the nono
+`open_port` that opens localhost for the Ollama provider (Linux needs the
+explicit `11434`, the Mac uses `0` — see "Local models (Ollama)"). Model IDs,
+skill revision, the `node-dev` base, denied commands, and the allowed domain
+should match. Current models: the **default is the local Ollama
+`qwen3-coder-next-64k`** (see "Local models (Ollama)"). The Cortecs (EU-sovereign)
+fleet stays selectable via `/model` — `qwen3-next-80b-a3b-thinking` the working
+cloud fallback, `glm-4.6` (Z.ai GLM-4.6) the intended steady-state main model,
+`devstral-2512` (Mistral Devstral 2 2512) also selectable — plus the open-weight
+Qwen3/DeepSeek models the `pi-subagents` builtins are pinned to (see "Subagent
+model overrides" in the macOS doc and `subagents.agentOverrides` in
+`settings.json`).
 
 One filesystem path is **macOS-only on purpose**: the Mac's profile adds a
 `$HOME/Documents/projects/.gitconfig` read because `~/Documents/projects/.envrc`
@@ -209,6 +214,75 @@ git push
 git worktree remove ../nixos-add-pi
 git branch -d add-pi
 ```
+
+## Local models (Ollama)
+
+Added after the initial `add-pi` work: alongside Cortecs (cloud, EU-sovereign),
+Pi can talk to a **local Ollama** server for offline / zero-cost inference.
+Ollama exposes an OpenAI-compatible API on `127.0.0.1:11434`, so it slots in as
+a second provider with the same `api: "openai-completions"` shape as Cortecs.
+**`qwen3-coder-next-64k` from this provider is now the default model**
+(`defaultProvider = "ollama"` / `defaultModel` in `settings.json`); the Cortecs
+fleet stays selectable via `/model`. This requires the derived model present on
+the host and ~53 GB RAM (see "Per-host acceleration & VRAM").
+
+What this adds:
+
+- **`modules/development/ollama.nix`** — `services.ollama.enable = true`,
+  imported by both hosts. Binds localhost only (no firewall hole). Models are
+  **not** declared here (see the num_ctx note); they're pulled at runtime.
+- **`providers.ollama`** in `home/lansing/development/pi-coding-agent.nix`'s
+  `models.json` block — `baseUrl = "http://127.0.0.1:11434/v1"`, a literal dummy
+  `apiKey = "ollama"` (Ollama ignores auth but Pi wants the field), and the
+  local model allow-list. `127.0.0.1` not `localhost`: Ollama binds IPv4 only,
+  so a `::1` first-try just adds a refused round-trip.
+- **`open_port = [ 11434 ]`** in `piNonoProfile.network` — lets sandboxed `spi`
+  reach Ollama. nono's `NO_PROXY` already lists localhost, so Pi/Node connects
+  direct (bypassing the proxy); `open_port` opens the raw localhost socket at the
+  Landlock layer. **Linux needs the explicit port; macOS uses `0`** (= all of
+  `localhost:*` outbound — per-port doesn't work there), so the Mac's
+  `pi-dev.json` carries `open_port: [0]` instead.
+
+### The num_ctx gotcha (why models are *derived* tags)
+
+Ollama caps context at **4096 tokens by default**, regardless of what the model
+supports — and silently truncates the *front* of anything longer, so a coding
+agent loses its system prompt + tool definitions. The OpenAI `/v1` endpoint has
+no per-request `num_ctx` knob, so the fix is a **derived model tag** that bakes
+the real window in:
+
+```bash
+ollama pull qwen3-coder-next
+printf 'FROM qwen3-coder-next\nPARAMETER num_ctx 65536\n' | ollama create qwen3-coder-next-64k -f -
+```
+
+`models.json` then points at `qwen3-coder-next-64k` (not the bare tag); same
+trick for gemma (`gemma4-12b-256k`). `services.ollama.loadModels` can't express
+this, which is why models stay runtime-managed rather than declarative — pull +
+derive by hand on each host (and on the Mac, see the macOS doc).
+
+### Current local models
+
+| id (derived tag) | base | num_ctx | notes |
+|---|---|---|---|
+| `qwen3-coder-next-64k` | `qwen3-coder-next` (q4_K_M, ~52 GB) | 65536 | best local coding-agent model that fits; 64K keeps it on-GPU on a 64 GB Mac (full 256K KV is too big alongside 52 GB of weights) |
+| `gemma4-12b-256k` | `gemma4:12b` (q4_K_M, ~7.6 GB) | 262144 | generalist, full 256K fits easily; weak at agentic coding — a fallback, not the main model |
+
+### Per-host acceleration & VRAM
+
+- **battlestation** (AMD Radeon RX 9070 XT, RDNA 4 / gfx1201): the host sets
+  `services.ollama.acceleration = "rocm"`. RDNA 4 ROCm support is recent — if
+  `journalctl -u ollama` shows a CPU fallback, set
+  `services.ollama.rocmOverrideGfx = "12.0.1"`. The card has **16 GB VRAM**, so
+  the 52 GB qwen only *partially* offloads here; models that fit ~14 GB run
+  fully on-GPU. A 64 GB-unified-memory Mac is the better home for the big model.
+- **workstation** (Framework 13, Intel): no discrete GPU → CPU inference
+  (the module default). Fine for small models; impractical for the 52 GB qwen.
+
+The model **allow-list and IDs must match the Mac's** `~/.pi/agent/models.json`
+(`providers.ollama`), same rule as the Cortecs list. The Ollama *server* and the
+pulled/derived models are per-machine runtime state (like `auth.json`), not
+synced — only the provider config in `models.json` is.
 
 ## Architecture
 
@@ -424,6 +498,23 @@ spi -p 'cat /etc/shadow'            # MUST be denied by the nono sandbox
   Pi gotcha — `/login` writes to its own state dir, but some plugin
   paths still consult the env var first. Either `unset ANTHROPIC_API_KEY`
   in the session or set the explicit provider on `/model`.
+- **Local `ollama` provider unreachable / model selector empty**: the
+  `services.ollama` unit isn't running, or no model is pulled. Check
+  `systemctl status ollama` and `ollama list`. The provider points at
+  `127.0.0.1:11434`; nothing answers until the service is up **and** a derived
+  model exists (see "Local models (Ollama)").
+- **A local model forgets its instructions / behaves erratically**: Ollama
+  truncated the context. The bare tag defaults to 4096 tokens — make sure
+  `models.json` points at the *derived* `…-64k` / `…-256k` tag (baked `num_ctx`),
+  not the base tag.
+- **Ollama runs on CPU on battlestation despite the RX 9070 XT**: RDNA 4
+  (gfx1201) ROCm support is recent. Set
+  `services.ollama.rocmOverrideGfx = "12.0.1"` and rebuild; confirm the HIP/ROCm
+  device line in `journalctl -u ollama`. Also remember the card's 16 GB VRAM
+  caps how much of a large model offloads.
+- **`spi` can't reach Ollama**: `open_port = [ 11434 ]` is missing from
+  `piNonoProfile.network` (on the Mac it must be `0`, not `11434`). Without it
+  the sandbox blocks the localhost socket — plain `pi` still works.
 
 ## References
 
@@ -456,3 +547,5 @@ Documentation:
 - [Cortecs.AI docs](https://docs.cortecs.ai/) — OpenAI-compatible endpoint at `https://api.cortecs.ai/v1`
 - [Cortecs glm-4.6 tool-name bug](cortecs-glm46-toolname-bug.md) — known provider bug (glm-4.6 truncates tool-call names); why the main model is temporarily `qwen3-next-80b-a3b-thinking`
 - [nono.sh docs](https://nono.sh/docs/cli/getting_started/installation) — sandbox tool (Landlock LSM on Linux, Seatbelt on macOS)
+- [NixOS `services.ollama`](https://search.nixos.org/options?query=services.ollama) — local Ollama server module (`enable`, `acceleration`, `rocmOverrideGfx`, `loadModels`)
+- [Ollama OpenAI compatibility](https://github.com/ollama/ollama/blob/main/docs/openai.md) — the `/v1` endpoint Pi's `ollama` provider targets; [Modelfile `num_ctx`](https://github.com/ollama/ollama/blob/main/docs/modelfile.md) for the derived-tag context fix

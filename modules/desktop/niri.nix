@@ -148,6 +148,31 @@ in
         };
       };
 
+      # A polkit authentication agent — the per-session UI that renders the
+      # password dialog when polkitd needs to authenticate a privileged action.
+      # GNOME/KDE start one automatically; niri does not, so without this nothing
+      # answers polkit auth requests. Concretely: 1Password's "Unlock using
+      # system authentication" registers a polkit action
+      # (com.1password.1Password.policy) and asks the session to authenticate it.
+      # With no agent running, that request goes unanswered and 1Password
+      # silently falls back to prompting for the account (master) password — so
+      # every SSH-agent/CLI unlock during git signing or direnv `op read` asks
+      # for the master password instead of the Linux login password. Running the
+      # agent lets system authentication reach the login-password prompt.
+      # hyprpolkitagent ships its own unit, but we declare ours explicitly to
+      # match xwayland-satellite above and keep the rationale next to the wiring.
+      systemd.user.services.hyprpolkitagent = {
+        description = "Polkit authentication agent (enables 1Password system-auth unlock)";
+        wantedBy = [ "graphical-session.target" ];
+        partOf = [ "graphical-session.target" ];
+        after = [ "graphical-session.target" ];
+        serviceConfig = {
+          ExecStart = "${pkgs.hyprpolkitagent}/libexec/hyprpolkitagent";
+          Slice = "session.slice";
+          Restart = "on-failure";
+        };
+      };
+
       services.xserver.xkb = {
         layout = if config.lansing.desktop.keyboardLayout == "iso" then "de" else "us";
         variant = "";

@@ -6,6 +6,7 @@
     specialArgs = { inherit inputs; inherit (inputs) self; };
     modules = [
       config.flake.modules.nixos.base
+      config.flake.modules.nixos.desktop
       ../../disko/battlestation.nix
       ../../hosts/battlestation
       inputs.home-manager.nixosModules.home-manager

@@ -2,13 +2,6 @@
 {
   imports = [
     ./hardware-configuration.nix
-    ../../modules/_legacy/desktop/niri.nix
-    ../../modules/_legacy/desktop/fonts.nix
-    ../../modules/_legacy/desktop/audio.nix
-    ../../modules/_legacy/desktop/power.nix
-    ../../modules/_legacy/desktop/tools.nix
-    ../../modules/_legacy/desktop/keyring.nix
-    ../../modules/_legacy/desktop/laptop.nix
     ../../modules/_legacy/apps/firefox.nix
     ../../modules/_legacy/apps/onepassword.nix
     ../../modules/_legacy/apps/vesktop.nix

@@ -2,35 +2,35 @@
 {
   imports = [
     ./hardware-configuration.nix
-    ../../modules/system/base.nix
-    ../../modules/system/boot.nix
-    ../../modules/system/network.nix
-    ../../modules/system/users.nix
-    ../../modules/system/openssh.nix
-    ../../modules/system/sops.nix
-    ../../modules/system/tailscale.nix
-    ../../modules/desktop/niri.nix
-    ../../modules/desktop/fonts.nix
-    ../../modules/desktop/audio.nix
-    ../../modules/desktop/power.nix
-    ../../modules/desktop/tools.nix
-    ../../modules/desktop/keyring.nix
-    ../../modules/apps/firefox.nix
-    ../../modules/apps/onepassword.nix
-    ../../modules/apps/vesktop.nix
-    ../../modules/apps/signal.nix
-    ../../modules/apps/spotify.nix
-    ../../modules/apps/obs-studio.nix
-    ../../modules/apps/opencloud.nix
-    ../../modules/gaming/steam.nix
-    ../../modules/gaming/lutris.nix
-    ../../modules/gaming/sunshine.nix
-    ../../modules/development/claude-code.nix
-    ../../modules/development/pi-coding-agent.nix
-    ../../modules/development/nono.nix
-    ../../modules/development/ollama.nix
-    ../../modules/development/docker.nix
-    ../../modules/development/vscodium.nix
+    ../../modules/_legacy/system/base.nix
+    ../../modules/_legacy/system/boot.nix
+    ../../modules/_legacy/system/network.nix
+    ../../modules/_legacy/system/users.nix
+    ../../modules/_legacy/system/openssh.nix
+    ../../modules/_legacy/system/sops.nix
+    ../../modules/_legacy/system/tailscale.nix
+    ../../modules/_legacy/desktop/niri.nix
+    ../../modules/_legacy/desktop/fonts.nix
+    ../../modules/_legacy/desktop/audio.nix
+    ../../modules/_legacy/desktop/power.nix
+    ../../modules/_legacy/desktop/tools.nix
+    ../../modules/_legacy/desktop/keyring.nix
+    ../../modules/_legacy/apps/firefox.nix
+    ../../modules/_legacy/apps/onepassword.nix
+    ../../modules/_legacy/apps/vesktop.nix
+    ../../modules/_legacy/apps/signal.nix
+    ../../modules/_legacy/apps/spotify.nix
+    ../../modules/_legacy/apps/obs-studio.nix
+    ../../modules/_legacy/apps/opencloud.nix
+    ../../modules/_legacy/gaming/steam.nix
+    ../../modules/_legacy/gaming/lutris.nix
+    ../../modules/_legacy/gaming/sunshine.nix
+    ../../modules/_legacy/development/claude-code.nix
+    ../../modules/_legacy/development/pi-coding-agent.nix
+    ../../modules/_legacy/development/nono.nix
+    ../../modules/_legacy/development/ollama.nix
+    ../../modules/_legacy/development/docker.nix
+    ../../modules/_legacy/development/vscodium.nix
   ];
 
   networking.hostName = "battlestation";

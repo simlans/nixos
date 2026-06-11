@@ -2,7 +2,7 @@
 {
   imports = [ inputs.sops-nix.nixosModules.sops ];
 
-  sops.defaultSopsFile = ../../secrets/personal.yaml;
+  sops.defaultSopsFile = ../../../secrets/personal.yaml;
 
   # `sops.age.sshKeyPaths` defaults to the ed25519 entries in
   # `services.openssh.hostKeys`, which `modules/system/openssh.nix`

@@ -83,7 +83,7 @@
 
   outputs = inputs@{ self, nixpkgs, home-manager, disko, lanzaboote, git-hooks, noctalia, nixos-hardware, flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" ];
+      imports = [ (inputs.import-tree ./modules) ];
       flake = let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};

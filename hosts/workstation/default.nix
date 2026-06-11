@@ -4,12 +4,6 @@
     ./hardware-configuration.nix
     ../../modules/_legacy/gaming/steam.nix
     ../../modules/_legacy/gaming/lutris.nix
-    ../../modules/_legacy/development/claude-code.nix
-    ../../modules/_legacy/development/pi-coding-agent.nix
-    ../../modules/_legacy/development/nono.nix
-    ../../modules/_legacy/development/ollama.nix
-    ../../modules/_legacy/development/docker.nix
-    ../../modules/_legacy/development/vscodium.nix
   ];
 
   networking.hostName = "workstation";

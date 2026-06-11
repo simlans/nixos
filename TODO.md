@@ -20,7 +20,7 @@
 
 - [x] Replace Discord with Vesktop (open-source client) — screen sharing doesn't work in Discord
 - [x] Switch font away from the current one to something with a finer style
-- [ ] Adjust tmux colors to match Catppuccin
+- [x] Adjust tmux colors to match Catppuccin — remapped the 17 `tmux_conf_theme_colour_*` variables in `modules/shell/tmux/tmux.conf.local` (oh-my-tmux default theme) to Catppuccin Mocha pastels, keeping the existing layout (yellow session / pink arrow / blue window / red user / grey host). Dark Crust text on the lighter pastel accents for legibility; hostname moved from white to a Surface2 grey with Text-coloured foreground.
 - [ ] Rename Tailscale host — "battlestation" is already taken by the Windows machine
 - [x] Install OpenCloud
 - [ ] Install a suitable file manager

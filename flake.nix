@@ -2,15 +2,14 @@
   description = "NixOS configuration for simlans's machines (battlestation desktop, workstation laptop)";
 
   inputs = {
-    # Temporarily on release-25.11 instead of the Hydra-tested nixos-25.11
-    # channel to pull in the GHSA-vh5x-56v6-4368 / GHSA-gr92-w2r5-qw5p Nix
-    # daemon LPE fix (PR #516633) before the channel advances. Revert to
-    # nixos-25.11 once status.nixos.org shows the patch in the channel.
-    nixpkgs.url = "github:NixOS/nixpkgs/release-25.11";
+    # Hydra-tested stable channel. Bump to the next nixos-YY.MM branch when
+    # cutting a release upgrade; revisit per-package `nixpkgs-unstable` pulls
+    # at the same time since the stable lag is usually the reason they exist.
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
     # Bleeding-edge channel used only for fast-moving packages where the
-    # 25.11 release lags too far behind upstream (currently: claude-code).
-    # Pull from this sparingly and explicitly per package.
+    # current stable release lags too far behind upstream. Pull from this
+    # sparingly and explicitly per package.
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
 
     # Flake outputs are produced by evaluating Nixpkgs-style modules instead
@@ -27,7 +26,7 @@
     import-tree.url = "github:vic/import-tree";
 
     home-manager = {
-      url = "github:nix-community/home-manager/release-25.11";
+      url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -65,9 +64,15 @@
 
     # Quickshell-based Wayland shell that replaces waybar. Upstream requires
     # nixpkgs unstable for the Quickshell version it depends on, so we point
-    # the input at our unstable channel rather than the 25.11 stable one.
+    # the input at our unstable channel rather than the stable one.
+    #
+    # Pinned to the final v4 commit: v5 reworked the home-manager option
+    # (`programs.noctalia-shell` → `programs.noctalia`), switched settings
+    # from a Nix attrset to TOML, renamed widget IDs, and changed the clock
+    # format from Qt to Python-strftime. Unpin once `modules/desktop/noctalia.nix`
+    # has been ported to the v5 schema.
     noctalia = {
-      url = "github:noctalia-dev/noctalia-shell";
+      url = "github:noctalia-dev/noctalia-shell/6b48834dd6c3913d211476ab2f964f3fb100675e";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
 

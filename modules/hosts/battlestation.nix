@@ -12,7 +12,7 @@
       sunshine
       ../../hosts/battlestation/hardware-configuration.nix
       ../../disko/battlestation.nix
-      {
+      ({ pkgs, ... }: {
         networking.hostName = "battlestation";
         system.stateVersion = "25.11";
 
@@ -25,7 +25,7 @@
         # NB: the card has 16 GB VRAM — the 52 GB qwen3-coder-next only *partially*
         # offloads here (the Mac's 64 GB unified memory fits it far better); models
         # that fit ~14 GB run fully on-GPU and fly.
-        services.ollama.acceleration = "rocm";
+        services.ollama.package = pkgs.ollama-rocm;
 
         lansing.desktop.keyboardLayout = "iso";
         lansing.desktop.niriOutputs = ''
@@ -34,7 +34,7 @@
               scale 1
           }
         '';
-      }
+      })
     ];
   };
 }

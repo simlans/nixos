@@ -20,10 +20,12 @@
     #   printf 'FROM qwen3-coder-next\nPARAMETER num_ctx 65536\n' | ollama create qwen3-coder-next-64k -f -
     #
     # Acceleration defaults to CPU here (correct for the Intel Framework laptop /
-    # workstation, which has no discrete GPU). On a GPU host, set it per-host in
-    # modules/hosts/<name>.nix — e.g. battlestation:
-    #   services.ollama.acceleration = "rocm";   # AMD GPU
-    #   services.ollama.acceleration = "cuda";   # NVIDIA GPU (needs allowUnfree)
+    # workstation, which has no discrete GPU). On a GPU host, pick the accelerated
+    # package per-host in modules/hosts/<name>.nix — e.g. battlestation:
+    #   services.ollama.package = pkgs.ollama-rocm;   # AMD GPU
+    #   services.ollama.package = pkgs.ollama-cuda;   # NVIDIA GPU (needs allowUnfree)
+    # (NixOS 26.05 dropped `services.ollama.acceleration` in favour of selecting
+    # the package directly: pkgs.ollama[,-vulkan,-rocm,-cuda,-cpu].)
     services.ollama.enable = true;
   };
 }

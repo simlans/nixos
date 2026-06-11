@@ -23,7 +23,7 @@
 - [x] Adjust tmux colors to match Catppuccin — remapped the 17 `tmux_conf_theme_colour_*` variables in `modules/shell/tmux/tmux.conf.local` (oh-my-tmux default theme) to Catppuccin Mocha pastels, keeping the existing layout (yellow session / pink arrow / blue window / red user / grey host). Dark Crust text on the lighter pastel accents for legibility; hostname moved from white to a Surface2 grey with Text-coloured foreground.
 - [ ] Rename Tailscale host — "battlestation" is already taken by the Windows machine
 - [x] Install OpenCloud
-- [ ] Install a suitable file manager
+- [x] Install a suitable file manager (yazi)
 - [x] Readd Mod+D besides Mod+Space to open app launcher
 - [x] Use Noctalia Login screen alternative
 - [x] Add own workspace "gaming" for Steam

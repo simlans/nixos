@@ -13,6 +13,19 @@
     # Pull from this sparingly and explicitly per package.
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
 
+    # Flake outputs are produced by evaluating Nixpkgs-style modules instead
+    # of one hand-written attrset — definitions of the same option merge
+    # across files, which is what the dendritic layout under `modules/`
+    # relies on.
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
+      inputs.nixpkgs-lib.follows = "nixpkgs";
+    };
+
+    # Auto-imports every .nix file under a directory (ignoring `_`-prefixed
+    # paths) so module files never have to be listed by hand.
+    import-tree.url = "github:vic/import-tree";
+
     home-manager = {
       url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -68,8 +81,10 @@
     };
   };
 
-  outputs = inputs@{ self, nixpkgs, home-manager, disko, lanzaboote, git-hooks, noctalia, nixos-hardware, ... }:
-    let
+  outputs = inputs@{ self, nixpkgs, home-manager, disko, lanzaboote, git-hooks, noctalia, nixos-hardware, flake-parts, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [ "x86_64-linux" ];
+      flake = let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
       pre-commit-check = git-hooks.lib.${system}.run {
@@ -315,6 +330,7 @@
       devShells.${system}.default = pkgs.mkShell {
         inherit (pre-commit-check) shellHook;
         buildInputs = pre-commit-check.enabledPackages;
+      };
       };
     };
 }

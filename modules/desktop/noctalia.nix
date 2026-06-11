@@ -1,64 +1,50 @@
-# Reference: https://docs.noctalia.dev/v4/getting-started/nixos/
+# Reference: https://docs.noctalia.dev/v5/getting-started/nixos/
 { inputs, ... }:
 {
   flake.modules.homeManager.desktop = { config, ... }: {
     imports = [ inputs.noctalia.homeModules.default ];
 
-    programs.noctalia-shell = {
+    programs.noctalia = {
       enable = true;
+      # Home-Manager still accepts a Nix attrset and serialises it to TOML.
       settings = {
-        colorSchemes = {
-          predefinedScheme = "Catppuccin";
-          darkMode = true;
-          useWallpaperColors = false;
-          schedulingMode = "auto";
+        theme = {
+          mode = "dark";
+          source = "builtin";
+          builtin = "Catppuccin";
         };
         location = {
-          name = "Düsseldorf, Germany";
-          autoLocate = false;
+          address = "Düsseldorf, Germany";
+          auto_locate = false;
         };
         wallpaper = {
           enabled = true;
           directory = "${config.home.homeDirectory}/Pictures/wallpapers";
         };
-        hooks = {
-          enabled = true;
-          startup = ''noctalia-shell ipc call wallpaper random ""'';
+        hooks.started = "noctalia msg wallpaper-random";
+        # v5 dropped the global shadow toggle; alpha = 0 keeps shadows off.
+        shell.shadow.alpha = 0;
+
+        bar.main = {
+          start = [ "launcher" "clock" "sysmon" "active_window" ];
+          center = [ "workspaces" ];
+          end = [ "media" "tray" "notifications" "battery" "volume" "brightness" "control-center" ];
         };
-        general.enableShadows = false;
-        bar.widgets = {
-          left = [
-            { id = "Launcher"; }
-            {
-              id = "Clock";
-              # Qt date/time format (case-sensitive, lokalisiert):
-              #   ddd  = Wochentag abgekürzt (z.B. "Fr")
-              #   d    = Tag ohne führende Null
-              #   MMMM = Monat ausgeschrieben (z.B. "Mai")
-              #   HH:mm:ss = Stunde:Minute:Sekunde, 24h
-              # Ergibt z.B. "Fr. 8. Mai 15:50:39" (de_DE-Locale vorausgesetzt).
-              formatHorizontal = "ddd. d. MMMM HH:mm:ss";
-              tooltipFormat = "yyyy-MM-dd HH:mm:ss";
-            }
-            { id = "SystemMonitor"; }
-            { id = "ActiveWindow"; maxWidth = 500; }
-          ];
-          center = [
-            {
-              id = "Workspace";
-              labelMode = "name";
-              characterCount = 1;
-            }
-          ];
-          right = [
-            { id = "MediaMini"; maxWidth = 500; }
-            { id = "Tray"; }
-            { id = "NotificationHistory"; }
-            { id = "Battery"; }
-            { id = "Volume"; }
-            { id = "Brightness"; }
-            { id = "ControlCenter"; }
-          ];
+
+        # Per-widget settings live in their own tables in v5 (no longer inline
+        # on each bar entry).
+        widget = {
+          clock = {
+            # Python strftime (renders in the process locale = en_US, so the
+            # weekday/month names come out English):
+            #   %a = weekday abbreviated, %-d = day without leading zero,
+            #   %B = month spelled out, %H:%M:%S = 24h time.
+            format = "{:%a. %-d. %B %H:%M:%S}";
+            tooltip_format = "{:%Y-%m-%d %H:%M:%S}";
+          };
+          active_window.max_length = 500;
+          media.max_length = 500;
+          workspaces.display = "name";
         };
       };
     };

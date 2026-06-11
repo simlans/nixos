@@ -310,7 +310,7 @@ environment {
 // every rebuild via system.activationScripts.applyLocalFullName in
 // modules/system/users.nix — so the desktop session has no startup
 // dependency on the 1Password daemon.
-spawn-at-startup "noctalia-shell"
+spawn-at-startup "noctalia"
 
 // Niri focuses the first declared workspace at session start, which is
 // `passwords` (the 1Password workspace) per
@@ -469,9 +469,9 @@ binds {
 
     // Suggested binds for running programs: terminal, app launcher, screen locker.
     Mod+T hotkey-overlay-title="Open a Terminal: alacritty" { spawn "alacritty"; }
-    Mod+Space hotkey-overlay-title="Run an Application: Noctalia" { spawn "noctalia-shell" "ipc" "call" "launcher" "toggle"; }
-    Mod+D hotkey-overlay-title="Run an Application: Noctalia" { spawn "noctalia-shell" "ipc" "call" "launcher" "toggle"; }
-    Mod+Alt+L hotkey-overlay-title="Lock the Screen: Noctalia" { spawn "noctalia-shell" "ipc" "call" "lockScreen" "lock"; }
+    Mod+Space hotkey-overlay-title="Run an Application: Noctalia" { spawn "noctalia" "msg" "panel-toggle" "launcher"; }
+    Mod+D hotkey-overlay-title="Run an Application: Noctalia" { spawn "noctalia" "msg" "panel-toggle" "launcher"; }
+    Mod+Alt+L hotkey-overlay-title="Lock the Screen: Noctalia" { spawn "noctalia" "msg" "session" "lock"; }
 
     // Use spawn-sh to run a shell command. Do this if you need pipes, multiple commands, etc.
     // Note: the entire command goes as a single argument. It's passed verbatim to `sh -c`.
@@ -738,5 +738,5 @@ binds {
     Mod+Shift+P { power-off-monitors; }
 
     // Open Noctalia's session menu (lock/logout/suspend/reboot/shutdown).
-    Mod+Alt+End { spawn "noctalia-shell" "ipc" "call" "sessionMenu" "toggle"; }
+    Mod+Alt+End { spawn "noctalia" "msg" "panel-toggle" "session"; }
 }

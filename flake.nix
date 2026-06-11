@@ -66,13 +66,12 @@
     # nixpkgs unstable for the Quickshell version it depends on, so we point
     # the input at our unstable channel rather than the stable one.
     #
-    # Pinned to the final v4 commit: v5 reworked the home-manager option
-    # (`programs.noctalia-shell` → `programs.noctalia`), switched settings
-    # from a Nix attrset to TOML, renamed widget IDs, and changed the clock
-    # format from Qt to Python-strftime. Unpin once `modules/desktop/noctalia.nix`
-    # has been ported to the v5 schema.
+    # Pinned to an explicit v5 (main) commit rather than a floating branch ref:
+    # v5 is still alpha and `rebuild()` runs `nix flake update` on every switch
+    # (see modules/shell/zsh.nix), so a bare ref would silently float to newer
+    # alpha commits each rebuild. Bump deliberately by editing the rev here.
     noctalia = {
-      url = "github:noctalia-dev/noctalia-shell/6b48834dd6c3913d211476ab2f964f3fb100675e";
+      url = "github:noctalia-dev/noctalia-shell/7421f80b041e81d6e202a25ade6bfc59d716dd43";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
 

@@ -19,7 +19,7 @@
   - `programs.ssh.matchBlocks."*"` → `programs.ssh.settings."*"` in `modules/apps/onepassword.nix`, rewritten with upstream OpenSSH directive names (`IdentityAgent`, `ForwardAgent`, …) instead of the camelCase aliases.
 
 - [x] Replace Discord with Vesktop (open-source client) — screen sharing doesn't work in Discord
-- [ ] Switch font away from the current one to something with a finer style
+- [x] Switch font away from the current one to something with a finer style
 - [ ] Adjust tmux colors to match Catppuccin
 - [ ] Rename Tailscale host — "battlestation" is already taken by the Windows machine
 - [x] Install OpenCloud

@@ -1,5 +1,49 @@
 {
-  flake.modules.homeManager.development = { pkgs, lib, ... }: {
+  flake.modules.homeManager.development = { pkgs, lib, ... }:
+    let
+      # nixpkgs' nvim-treesitter is now the `main` branch rewrite. It reads
+      # parsers from `install_dir/parser` and queries from `install_dir/queries`
+      # (default ~/.local/share/nvim/site) and, when a parser is missing, tries
+      # to compile it at runtime — which needs a C compiler + the tree-sitter
+      # CLI we don't ship, so LazyVim errors out. Instead we point it at a
+      # Nix-built dir holding the prebuilt grammars and their matching queries,
+      # so every parser is seen as already installed and nothing is compiled.
+      treesitterParsers = pkgs.symlinkJoin {
+        name = "treesitter-parsers";
+        paths = (pkgs.vimPlugins.nvim-treesitter.withPlugins (p: with p; [
+          bash
+          c
+          diff
+          html
+          javascript
+          jsdoc
+          json
+          lua
+          luadoc
+          luap
+          markdown
+          markdown_inline
+          printf
+          python
+          query
+          regex
+          toml
+          tsx
+          typescript
+          vim
+          vimdoc
+          xml
+          yaml
+          nix
+        ])).dependencies;
+      };
+      treesitterInstallDir = pkgs.runCommand "nvim-treesitter-install-dir" { } ''
+        mkdir -p $out
+        ln -s ${treesitterParsers}/parser $out/parser
+        ln -s ${pkgs.vimPlugins.nvim-treesitter}/runtime/queries $out/queries
+      '';
+    in
+    {
     programs.neovim = {
       enable = true;
       defaultEditor = true;
@@ -99,46 +143,12 @@
               { "mason-org/mason-lspconfig.nvim", enabled = false },
               { "hrsh7th/nvim-cmp", enabled = false },
 
-              { "nvim-treesitter/nvim-treesitter", opts = { ensure_installed = {} } },
+              { "nvim-treesitter/nvim-treesitter", opts = { install_dir = "${treesitterInstallDir}", ensure_installed = {} } },
             },
             checker = { enabled = false },
             change_detection = { enabled = false },
           })
         '';
     };
-
-    xdg.configFile."nvim/parser".source =
-      let
-        parsers = pkgs.symlinkJoin {
-          name = "treesitter-parsers";
-          paths = (pkgs.vimPlugins.nvim-treesitter.withPlugins (p: with p; [
-            bash
-            c
-            diff
-            html
-            javascript
-            jsdoc
-            json
-            lua
-            luadoc
-            luap
-            markdown
-            markdown_inline
-            printf
-            python
-            query
-            regex
-            toml
-            tsx
-            typescript
-            vim
-            vimdoc
-            xml
-            yaml
-            nix
-          ])).dependencies;
-        };
-      in
-      "${parsers}/parser";
   };
 }

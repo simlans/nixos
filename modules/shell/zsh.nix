@@ -59,6 +59,21 @@
       # (declared in git.nix). 1Password CLI auth is delegated to the desktop
       # app via "Integrate with 1Password CLI" — no per-shell `op signin`.
       initContent = ''
+        # `rebuild [path]` — bump every flake input, then switch.
+        # Targets the current directory by default; pass a path to build a
+        # different checkout (e.g. `rebuild ~/Projects/nixos`). A plain
+        # `nixos-rebuild` only builds what flake.lock pins, so floating
+        # packages (claude-code from nixpkgs-unstable, see
+        # development/claude-code.nix) never advance without a lock bump first.
+        # `&&` is fail-fast: a failed update aborts before the switch. No host
+        # attr needed — nixos-rebuild defaults the flake attribute to the
+        # current hostname (.#battlestation, .#workstation, …). Run
+        # `sudo nixos-rebuild switch` directly to build WITHOUT updating.
+        rebuild() {
+          local flake="''${1:-.}"
+          nix flake update --flake "$flake" && sudo nixos-rebuild switch --flake "$flake"
+        }
+
         # Fall back to xterm-256color for unknown terminfo entries (e.g. xterm-ghostty)
         if ! infocmp "$TERM" &>/dev/null 2>&1; then
           export TERM=xterm-256color

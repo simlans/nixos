@@ -167,38 +167,66 @@ sudo nixos-rebuild switch --flake ~/nixos#<host>
 
 ### Replacing a host's user (e.g. battlestation `lansing` → `bread`)
 
-`battlestation` is configured for `bread`, but a machine first installed as
-`lansing` still has the `lansing` account on disk. Because `users.mutableUsers
-= true`, a `nixos-rebuild switch` is non-destructive and **cannot lock you
-out**: it *creates* `bread` and *keeps* `lansing` (account, password, home,
-group memberships incl. `wheel`) — it just stops managing `lansing`. The catch
-is that `bread` is created with **no password and no SSH key**, so it can't log
-in yet, and the `git/*` + `sunshine/*` secrets are re-chowned to `bread`.
+`battlestation`'s config imports only `user-bread`, but a machine first
+installed as `lansing` still has a declared `lansing` account on disk.
 
-Migrate from a still-logged-in `lansing` session (which keeps `sudo`):
+> **⚠️ The switch is destructive — it removes `lansing`.** Do **not** assume
+> `users.mutableUsers = true` keeps the old account around. `lansing` is a
+> NixOS-*declared* user, so once the host config stops declaring it (importing
+> `user-bread` instead of `user-lansing`), `update-users-groups.pl` *deletes*
+> `lansing` from `/etc/passwd` on the next switch. `mutableUsers = true` only
+> protects the password column of users you *still declare*; it does **not**
+> preserve an undeclared one. And because your GUI session runs as `lansing`'s
+> UID (1000), the moment that entry disappears every `sudo` in that session
+> fails with `sudo: you do not exist in the passwd database` — before you can
+> even reach `sudo passwd bread`. With `lansing` gone, `bread` still locked, and
+> root password-less, a reboot at that point **locks the machine out entirely.**
+
+**Recommended: two-phase migration that genuinely can't lock you out.** Keep
+both users declared while you hand over, and only drop `lansing` once `bread`
+is confirmed working.
 
 ```bash
-# 0. (remote login only) add bread's pubkey to modules/users/bread.nix → sshKeys, then commit/push
+# Phase 1 — declare BOTH users, so the switch creates bread WITHOUT removing lansing.
+#   In modules/hosts/battlestation.nix, add `user-lansing` next to `user-bread`.
+#   (remote login only) also add bread's pubkey to modules/users/bread.nix → sshKeys.
+git commit -am "battlestation: declare bread alongside lansing for handover" && git push  # if remote
 sudo nixos-rebuild switch --flake ~/nixos#battlestation        # creates bread, keeps lansing
-sudo passwd bread                                              # bread can now log in
+sudo passwd bread                                              # bread can now log in (lansing's sudo still works)
 echo "Real Name" | sudo tee /etc/nixos/local/full-name-bread   # GECOS (init-account is lansing-only)
 # optional: carry over data worth keeping
 sudo rsync -a /home/lansing/<dirs> /home/bread/ && sudo chown -R bread:users /home/bread
 sudo nixos-rebuild switch --flake ~/nixos#battlestation        # applies the GECOS name
-```
 
-Log out, log back in as **bread**, then redo the per-user bootstrap from
-[First-time setup after the install](#first-time-setup-after-the-install) — sign
-into the 1Password GUI so git signing works (`bread`'s git identity already
-flows from the now-`bread`-owned `git/*` secrets). Once `bread` is confirmed
-working, retire the old account:
+# Log out, log back in as bread, sign into the 1Password GUI (see "First-time setup
+# after the install"), confirm sudo + git signing work. ONLY THEN:
 
-```bash
+# Phase 2 — drop lansing from the config and remove the account.
+#   In modules/hosts/battlestation.nix, remove the `user-lansing` import.
+git commit -am "battlestation: drop lansing after handover to bread" && git push  # if remote
+sudo nixos-rebuild switch --flake ~/nixos#battlestation        # now removes lansing from /etc/passwd
 sudo userdel -r lansing      # -r also deletes /home/lansing — only after migrating!
 ```
 
-No reboot is needed at any step, and `lansing` keeps password login + `sudo`
-throughout, so the switch stays reversible until you run `userdel`.
+Throughout Phase 1 `lansing` keeps password login + `sudo`, so the migration
+stays reversible until the Phase 2 `userdel`.
+
+**Recovery if you already ran the one-shot switch and `sudo` is broken.** If you
+switched straight to the `bread`-only config, `lansing` is already gone and
+`sudo` no longer works in your orphaned session — but the session's UID is still
+in the `docker` group, which is root-equivalent and bypasses the broken passwd
+lookup. Use it to set `bread`'s password, then log in as `bread`:
+
+```bash
+docker run --rm -it -v /:/host alpine \
+  chroot /host /run/current-system/sw/bin/passwd bread     # set bread's login password as root
+docker run --rm -v /:/host alpine \
+  chroot /host /run/current-system/sw/bin/passwd -S bread  # verify: expect "bread P ..."
+```
+
+Do **not** log out or reboot until that prints `bread P` — until then no account
+can log in. Then log out, log in as `bread` (in `wheel`, so `sudo` is back), and
+finish the optional `rsync` + `userdel -r lansing` above.
 
 ### Editing secrets
 

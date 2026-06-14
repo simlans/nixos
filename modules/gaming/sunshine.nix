@@ -9,16 +9,16 @@
     # the apps list, and an ExecStartPre that seeds the WebUI admin
     # credentials from sops.
     #
-    # `lansing` is already in the `input` group (modules/system/users.nix),
-    # so /dev/uinput access via Sunshine's bundled udev rule (`TAG+="uaccess"`)
-    # works without further wiring.
+    # The host's users get the `input` group from the mkUser builder
+    # (modules/users/mk-user.nix), so /dev/uinput access via Sunshine's bundled
+    # udev rule (`TAG+="uaccess"`) works without further wiring.
     #
     # Sops secrets are declared locally in this aspect rather than in
     # modules/system/sops.nix so that only hosts importing it (i.e.
     # battlestation) actually decrypt them into /run/secrets/.
 
-    sops.secrets."sunshine/admin_user".owner = "lansing";
-    sops.secrets."sunshine/admin_pass".owner = "lansing";
+    sops.secrets."sunshine/admin_user".owner = config.my.primaryUser;
+    sops.secrets."sunshine/admin_pass".owner = config.my.primaryUser;
 
     services.sunshine = {
       enable = true;
@@ -50,7 +50,7 @@
         capture = "kms";
 
         # The battlestation runs the ultrawide on DP-1
-        # (modules/hosts/battlestation.nix → lansing.desktop.niriOutputs).
+        # (modules/hosts/battlestation.nix → host.desktop.niriOutputs).
         # DRM connector names match niri output names.
         output_name = "DP-1";
 

@@ -2,8 +2,10 @@
 
 Declarative NixOS configuration for two of simlans's machines:
 
-- **`battlestation`** — AMD Ryzen 7 9800X3D desktop, Radeon RX 9070 XT, NVMe + LUKS, Niri/Wayland.
-- **`workstation`** — Framework 13 Pro laptop (Intel Core Ultra 7 358H / Panther Lake), Intel Arc iGPU, NVMe + LUKS, Niri/Wayland, plus Slack.
+- **`battlestation`** — AMD Ryzen 7 9800X3D desktop, Radeon RX 9070 XT, NVMe + LUKS, Niri/Wayland. Primary user: `bread`.
+- **`workstation`** — Framework 13 Pro laptop (Intel Core Ultra 7 358H / Panther Lake), Intel Arc iGPU, NVMe + LUKS, Niri/Wayland, plus Slack. Primary user: `lansing`.
+
+There's also a non-hardware **`multiuser`** reference at `modules/hosts/_multiuser.example.nix` that home-manages **both** `lansing` and `bread` on one host — proof the shared modules are user-agnostic. Its leading `_` makes import-tree skip it, so it isn't a real output; drop the `_` to expose it and build/run it as a VM (`nixos-rebuild build-vm --flake .#multiuser`).
 
 Two hosts, one flake, shared modules. Throughout this README, replace `<host>` with either `battlestation` or `workstation` depending on which machine you're working on.
 
@@ -99,6 +101,13 @@ First-boot caveat for the GECOS step: the lock-screen greeting will read
 the activation script — see [Subsequent rebuilds](#subsequent-rebuilds)
 just below; that step is part of the normal install flow anyway.
 
+> **Per-host primary user.** The commands above show `lansing` (the
+> workstation's user). On `battlestation` the user is `bread` — substitute
+> accordingly (`passwd bread`, log in as `bread`). `nix run .#init-account`
+> still hard-codes `lansing` (see AGENTS.md → "Out of scope"); until it's
+> parameterized, bootstrap a non-`lansing` host by hand: `passwd <user>` and
+> write the real name to `/etc/nixos/local/full-name-<user>`.
+
 ### Finish Secure Boot setup
 
 The first boot ran two systemd services from the Lanzaboote module:
@@ -145,15 +154,51 @@ nix flake check
 
 ### Change the GECOS / lock-screen real name
 
-`/etc/nixos/local/full-name` is the single source of truth for the
-description column of `/etc/passwd`. Edit the file, then rebuild — the
-activation script in `modules/users/lansing.nix` picks up the new value
-via `usermod` on the next switch:
+`/etc/nixos/local/full-name-<user>` is the single source of truth for that
+user's description column in `/etc/passwd` (the legacy single-user
+`/etc/nixos/local/full-name` is still read as a fallback). Edit the file, then
+rebuild — the per-user `applyLocalFullName-<user>` activation script generated
+by `lib/mk-user.nix` picks up the new value via `usermod` on the next switch:
 
 ```bash
-sudoedit /etc/nixos/local/full-name
+sudoedit /etc/nixos/local/full-name-bread      # battlestation; -lansing on workstation
 sudo nixos-rebuild switch --flake ~/nixos#<host>
 ```
+
+### Replacing a host's user (e.g. battlestation `lansing` → `bread`)
+
+`battlestation` is configured for `bread`, but a machine first installed as
+`lansing` still has the `lansing` account on disk. Because `users.mutableUsers
+= true`, a `nixos-rebuild switch` is non-destructive and **cannot lock you
+out**: it *creates* `bread` and *keeps* `lansing` (account, password, home,
+group memberships incl. `wheel`) — it just stops managing `lansing`. The catch
+is that `bread` is created with **no password and no SSH key**, so it can't log
+in yet, and the `git/*` + `sunshine/*` secrets are re-chowned to `bread`.
+
+Migrate from a still-logged-in `lansing` session (which keeps `sudo`):
+
+```bash
+# 0. (remote login only) add bread's pubkey to modules/users/bread.nix → sshKeys, then commit/push
+sudo nixos-rebuild switch --flake ~/nixos#battlestation        # creates bread, keeps lansing
+sudo passwd bread                                              # bread can now log in
+echo "Real Name" | sudo tee /etc/nixos/local/full-name-bread   # GECOS (init-account is lansing-only)
+# optional: carry over data worth keeping
+sudo rsync -a /home/lansing/<dirs> /home/bread/ && sudo chown -R bread:users /home/bread
+sudo nixos-rebuild switch --flake ~/nixos#battlestation        # applies the GECOS name
+```
+
+Log out, log back in as **bread**, then redo the per-user bootstrap from
+[First-time setup after the install](#first-time-setup-after-the-install) — sign
+into the 1Password GUI so git signing works (`bread`'s git identity already
+flows from the now-`bread`-owned `git/*` secrets). Once `bread` is confirmed
+working, retire the old account:
+
+```bash
+sudo userdel -r lansing      # -r also deletes /home/lansing — only after migrating!
+```
+
+No reboot is needed at any step, and `lansing` keeps password login + `sudo`
+throughout, so the switch stays reversible until you run `userdel`.
 
 ### Editing secrets
 
@@ -170,8 +215,9 @@ sops secrets/personal.yaml             # opens $EDITOR with plaintext, re-encryp
 Commit the resulting file. The encrypted form is what gets pushed.
 
 To add a new secret, declare it in `modules/system/sops.nix`
-(`sops.secrets."<key>" = { owner = "lansing"; };`), then reference its
-decrypted path from a NixOS module via `config.sops.secrets."<key>".path`
+(`sops.secrets."<key>".owner = config.my.primaryUser;` — the host's primary
+user, never a hard-coded name), then reference its decrypted path from a NixOS
+module via `config.sops.secrets."<key>".path`
 or from a home-manager module via `osConfig.sops.secrets."<key>".path`.
 
 ## Layout
@@ -184,6 +230,7 @@ disko/battlestation.nix                  # GPT: 1 GiB ESP (FAT32) + LUKS→ext4 
 disko/workstation.nix                    # same layout, separate file so #workstation has its own module path
 hosts/battlestation/hardware-configuration.nix  # AMD CPU (kvm-amd, amd_pstate=active, microcode), NVMe initrd modules
 hosts/workstation/hardware-configuration.nix    # Intel CPU (kvm-intel, microcode), NVMe + thunderbolt — placeholder, regenerate after first boot
+lib/mk-user.nix                          # mkUser builder: a plain fn (outside the import-tree) that builds a user's whole aspect from a username — account, groups, sudo, GECOS, HM identity, my.homeUsers/my.primaryUser registration
 modules/                                 # every .nix file in here is a flake-parts module, auto-loaded by import-tree
                                          # (dendritic pattern: one file = one feature, defining its NixOS and
                                          #  home-manager halves side by side; same-named definitions merge into
@@ -191,9 +238,11 @@ modules/                                 # every .nix file in here is a flake-pa
   meta/                                  # flake plumbing: systems, bootstrap apps (perSystem), gitleaks pre-commit + devShell
   hosts/battlestation.nix                # nixosConfigurations.battlestation = base+desktop+development+gaming+obs-studio+sunshine + host data (ISO keyboard, DP-1 output, rocm)
   hosts/workstation.nix                  # nixosConfigurations.workstation  = base+desktop+development+gaming+laptop+slack + host data (ANSI keyboard, eDP-1 output)
-  users/home-manager.nix                 # user-agnostic HM coupling: my.homeUsers + attaches homeManager.{base,desktop,development} to each registered user
+  hosts/_multiuser.example.nix           # reference only — the _ prefix makes import-tree SKIP it (not a real output). both user-lansing & user-bread on one host; drop the _ to build .#multiuser
+  users/home-manager.nix                 # user-agnostic HM coupling: my.homeUsers + my.primaryUser; attaches homeManager.{base,desktop,development} to each registered user
   users/home-base.nix                    # homeManager.base: shared home defaults (stateVersion, cursor, programs.home-manager)
-  users/lansing.nix                      # lansing user aspect: account + self-registers into my.homeUsers; homeManager.lansing = username/homeDirectory
+  users/lansing.nix                      # lansing user aspect: one mkUser call (username + SSH key)
+  users/bread.nix                        # bread user aspect: example second user, same mkUser builder
   system/                                # → base: locale/nix settings, boot (lanzaboote), disko import, network, users, openssh, sops, tailscale
   desktop/                               # → desktop: niri (NixOS + config.kdl renderer), keyboard-layout options, fonts, audio, power,
                                          #   tools, keyring, alacritty (HM), noctalia (HM); laptop.nix → own `laptop` bucket (generic laptop
@@ -416,7 +465,7 @@ Once the system boots into Niri, finish the per-user bootstrap:
 
 Niri does per-output workspaces by default — each screen has an independent vertical workspace stack, and `Mod+Up`/`Mod+Down` only scrolls the workspaces of the currently focused output. No `workspaces { … }` block is needed to keep the laptop and an external monitor independent.
 
-The `eDP-1` block already in `lansing.desktop.niriOutputs` (`modules/hosts/workstation.nix`) is enough on its own. If no external monitor is plugged in, niri runs on the internal panel only; any monitor that gets plugged in afterwards is auto-detected with niri's defaults (preferred mode from EDID, scale 1, position to the right of existing outputs). Add an explicit `output { … }` block per external monitor when you want deterministic position, mode, or scale.
+The `eDP-1` block already in `host.desktop.niriOutputs` (`modules/hosts/workstation.nix`) is enough on its own. If no external monitor is plugged in, niri runs on the internal panel only; any monitor that gets plugged in afterwards is auto-detected with niri's defaults (preferred mode from EDID, scale 1, position to the right of existing outputs). Add an explicit `output { … }` block per external monitor when you want deterministic position, mode, or scale.
 
 ### Identify outputs by EDID, not by connector name
 
@@ -435,7 +484,7 @@ The internal panel runs at 2880×1920 with `scale 1.5`, so its logical size is *
 
 ```nix
 # In modules/hosts/workstation.nix
-lansing.desktop.niriOutputs = ''
+host.desktop.niriOutputs = ''
   output "eDP-1" {
       mode "2880x1920@120.000"
       scale 1.5
@@ -505,7 +554,7 @@ When the named output isn't connected, niri falls back to the currently focused 
 - **First `fwupd update`**: Framework distributes BIOS + EC firmware via LVFS. Some EC blobs aren't db-signed; if `fwupdmgr update` fails, toggle Secure Boot **off** in the BIOS, run the update, and re-enable Secure Boot afterwards.
 - **Fingerprint enrollment** (one-time, after first boot): `sudo fprintd-enroll lansing`. The PAM hooks for `login` and `sudo` are already wired up in `modules/hosts/workstation.nix`.
 - **Touchscreen**: handled by libinput + niri out of the box, no extra config needed.
-- **2.8K display**: niri runs the panel at `scale 1.5`. Verify the exact mode string with `niri msg outputs` after the first boot and adjust `lansing.desktop.niriOutputs` in `modules/hosts/workstation.nix` if necessary.
+- **2.8K display**: niri runs the panel at `scale 1.5`. Verify the exact mode string with `niri msg outputs` after the first boot and adjust `host.desktop.niriOutputs` in `modules/hosts/workstation.nix` if necessary.
 - **WisdPi 10G**: USB-C 10GbE expansion card, Linux driver depends on the chipset (Aquantia `atlantic` or Realtek `r8152` — both mainline). Run `lsusb` from the install USB and add the chipset note to `AGENTS.md` once known.
 
 ## Fallback: manual install

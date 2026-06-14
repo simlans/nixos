@@ -2,7 +2,7 @@
   flake.modules.nixos.desktop = { pkgs, ... }: {
     environment.systemPackages = [ pkgs.signal-desktop ];
 
-    lansing.desktop.niri.appWindowRules = [
+    host.desktop.niri.appWindowRules = [
       {
         match.app-id = "^signal$";
         openOnWorkspace = "communication";

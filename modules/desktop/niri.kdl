@@ -108,10 +108,10 @@ input {
 
 @OUTPUTS@
 
-// Named workspaces declared by lansing.desktop.niri.workspaces (system option).
+// Named workspaces declared by host.desktop.niri.workspaces (system option).
 // Niri assigns stable indices 1..N in declaration order, so Mod+1 focuses the
 // first entry, etc. App modules route windows here via per-app
-// window-rules contributed through lansing.desktop.niri.appWindowRules,
+// window-rules contributed through host.desktop.niri.appWindowRules,
 // rendered further down in the window-rules section.
 @WORKSPACES@
 
@@ -279,7 +279,7 @@ layout {
 // to every child it spawns, so unsetting this block leaves children with
 // niri's defaults ("default" / 24) regardless of what home.pointerCursor
 // writes into the user systemd environment. Values are templated from
-// home.pointerCursor by home/lansing/desktop/niri.nix.
+// home.pointerCursor by modules/desktop/niri.nix.
 cursor {
     xcursor-theme "@CURSOR_THEME@"
     xcursor-size @CURSOR_SIZE@
@@ -305,16 +305,16 @@ environment {
 // The lock-screen "Welcome back <name>" line falls back to the GECOS field
 // in /etc/passwd when NOCTALIA_REALNAME is unset (HostService.qml's
 // displayName chain: env var → `getent passwd "$USER" | cut -d: -f5 | cut -d, -f1`
-// → $USER → "User"). The GECOS field is seeded from /etc/nixos/local/full-name
-// at install time (`nix run .#init-account`, see README) and re-applied on
-// every rebuild via system.activationScripts.applyLocalFullName in
-// modules/system/users.nix — so the desktop session has no startup
-// dependency on the 1Password daemon.
+// → $USER → "User"). The GECOS field is seeded from
+// /etc/nixos/local/full-name-<user> at install time (`nix run .#init-account`,
+// see README) and re-applied on every rebuild via the per-user
+// system.activationScripts.applyLocalFullName-<user> in modules/users/mk-user.nix
+// — so the desktop session has no startup dependency on the 1Password daemon.
 spawn-at-startup "noctalia"
 
 // Niri focuses the first declared workspace at session start, which is
 // `passwords` (the 1Password workspace) per
-// lansing.desktop.niri.workspaces. Jump straight to `main` so login
+// host.desktop.niri.workspaces. Jump straight to `main` so login
 // doesn't land on the vault. Runs after niri's IPC socket is up; a
 // brief flash from passwords→main on slow boots is acceptable.
 spawn-at-startup "niri" "msg" "action" "focus-workspace" "main"
@@ -412,7 +412,7 @@ window-rule {
 }
 
 // Per-app window rules contributed by individual app modules (modules/apps/*),
-// aggregated through lansing.desktop.niri.appWindowRules. Empty if no app on
+// aggregated through host.desktop.niri.appWindowRules. Empty if no app on
 // this host declares a rule.
 @APP_WINDOW_RULES@
 
@@ -622,7 +622,7 @@ binds {
     // For example, with 2 workspaces + 1 empty, indices 3, 4, 5 and so on
     // will all refer to the 3rd workspace.
     //
-    // Named workspaces come from lansing.desktop.niri.workspaces — niri
+    // Named workspaces come from host.desktop.niri.workspaces — niri
     // assigns them stable indices 1..N in declaration order, so Mod+1
     // focuses the first named workspace, Mod+2 the second, etc.
     Mod+1 { focus-workspace 1; }

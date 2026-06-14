@@ -28,6 +28,22 @@ in
       '';
     };
 
+    options.my.primaryUser = lib.mkOption {
+      type = lib.types.str;
+      description = ''
+        The single OS user that owns this host's personal, single-owner
+        bindings: the git identity / API-key / sunshine sops secrets and the
+        like. Generic modules read this instead of hard-coding a username
+        (see modules/system/sops.nix, modules/gaming/sunshine.nix).
+
+        A user aspect sets it via mkUser (`lib.mkDefault username`), so a
+        single-user host derives it automatically. A host that imports several
+        user aspects must set it explicitly — the conflicting defaults fail
+        otherwise, which is a deliberate prompt to choose the owner. For
+        "every interactive user" bindings (e.g. polkit) use my.homeUsers.
+      '';
+    };
+
     config = {
       home-manager.useGlobalPkgs = true;
       home-manager.useUserPackages = true;

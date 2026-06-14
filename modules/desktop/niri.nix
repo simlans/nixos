@@ -10,7 +10,7 @@ let
 in
 {
   flake.modules.nixos.desktop = { config, lib, pkgs, ... }: {
-    options.lansing.desktop.niri = {
+    options.host.desktop.niri = {
       workspaces = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         default = [ "passwords" "communication" "main" "gaming" ];
@@ -97,22 +97,22 @@ in
       assertions =
         (map (rule: {
           assertion = rule.openOnWorkspace == null
-            || builtins.elem rule.openOnWorkspace config.lansing.desktop.niri.workspaces;
+            || builtins.elem rule.openOnWorkspace config.host.desktop.niri.workspaces;
           message =
-            "lansing.desktop.niri.appWindowRules entry for app-id "
+            "host.desktop.niri.appWindowRules entry for app-id "
             + "'${rule.match.app-id or "?"}' targets workspace "
             + "'${toString rule.openOnWorkspace}', which is not in "
-            + "lansing.desktop.niri.workspaces "
-            + "(${lib.concatStringsSep ", " config.lansing.desktop.niri.workspaces}).";
-        }) config.lansing.desktop.niri.appWindowRules)
+            + "host.desktop.niri.workspaces "
+            + "(${lib.concatStringsSep ", " config.host.desktop.niri.workspaces}).";
+        }) config.host.desktop.niri.appWindowRules)
         ++ (lib.mapAttrsToList (ws: _output: {
-          assertion = builtins.elem ws config.lansing.desktop.niri.workspaces;
+          assertion = builtins.elem ws config.host.desktop.niri.workspaces;
           message =
-            "lansing.desktop.niri.workspaceOutputs binds workspace "
+            "host.desktop.niri.workspaceOutputs binds workspace "
             + "'${ws}' which is not declared in "
-            + "lansing.desktop.niri.workspaces "
-            + "(${lib.concatStringsSep ", " config.lansing.desktop.niri.workspaces}).";
-        }) config.lansing.desktop.niri.workspaceOutputs);
+            + "host.desktop.niri.workspaces "
+            + "(${lib.concatStringsSep ", " config.host.desktop.niri.workspaces}).";
+        }) config.host.desktop.niri.workspaceOutputs);
 
       programs.niri = {
         enable = true;
@@ -174,7 +174,7 @@ in
       };
 
       services.xserver.xkb = {
-        layout = if config.lansing.desktop.keyboardLayout == "iso" then "de" else "us";
+        layout = if config.host.desktop.keyboardLayout == "iso" then "de" else "us";
         variant = "";
       };
 
@@ -212,12 +212,12 @@ in
   };
 
   # Home-manager half: renders ~/.config/niri/config.kdl from the niri.kdl
-  # template, filling in the markers from the system-side lansing.* options
-  # (via osConfig — home-manager runs as a NixOS module here).
+  # template, filling in the markers from the system-side host.desktop.*
+  # options (via osConfig — home-manager runs as a NixOS module here).
   flake.modules.homeManager.desktop = { config, lib, osConfig, ... }:
     let
       keys =
-        if osConfig.lansing.desktop.keyboardLayout == "iso" then {
+        if osConfig.host.desktop.keyboardLayout == "iso" then {
           help      = "Mod+Shift+ssharp";
           consumeL  = "Mod+odiaeresis";
           consumeR  = "Mod+adiaeresis";
@@ -235,7 +235,7 @@ in
           heightInc = "Mod+Shift+Equal";
         };
 
-      niriCfg = osConfig.lansing.desktop.niri;
+      niriCfg = osConfig.host.desktop.niri;
 
       renderWorkspace = name:
         let
@@ -292,7 +292,7 @@ in
           keys.widthInc
           keys.heightDec
           keys.heightInc
-          osConfig.lansing.desktop.niriOutputs
+          osConfig.host.desktop.niriOutputs
           workspacesKdl
           appWindowRulesKdl
           config.home.pointerCursor.name

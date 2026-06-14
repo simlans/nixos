@@ -192,7 +192,7 @@ in
         # of memory resident. Fits a 64 GB Mac/box; on battlestation's 16 GB-VRAM
         # RX 9070 XT it only *partially* offloads (slower), and a host with < ~64 GB
         # RAM can't load it at all — there, add a per-host override
-        # (`home-manager.users.lansing...defaultModel`) pointing back at a Cortecs
+        # (`home-manager.users.<user>...defaultModel`) pointing back at a Cortecs
         # model, or pick one via /model. On NixOS settings.json is a read-only
         # symlink, so without these keys Pi falls back to /login (Claude).
         # KEEP IN SYNC with the Mac.

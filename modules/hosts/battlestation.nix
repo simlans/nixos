@@ -10,7 +10,7 @@
       gaming
       obs-studio
       sunshine
-      user-lansing
+      user-bread
       ../../hosts/battlestation/hardware-configuration.nix
       ../../disko/battlestation.nix
       ({ pkgs, ... }: {
@@ -28,8 +28,8 @@
         # that fit ~14 GB run fully on-GPU and fly.
         services.ollama.package = pkgs.ollama-rocm;
 
-        lansing.desktop.keyboardLayout = "iso";
-        lansing.desktop.niriOutputs = ''
+        host.desktop.keyboardLayout = "iso";
+        host.desktop.niriOutputs = ''
           output "DP-1" {
               mode "3440x1440@100.000"
               scale 1

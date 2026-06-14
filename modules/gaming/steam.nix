@@ -14,7 +14,7 @@
     # catches both. Game windows have their own app-ids and are not
     # captured by this rule, which matches what we want: the launcher
     # lives on `gaming`, individual games stay wherever they're spawned.
-    lansing.desktop.niri.appWindowRules = [
+    host.desktop.niri.appWindowRules = [
       {
         match.app-id = "^[Ss]team$";
         openOnWorkspace = "gaming";

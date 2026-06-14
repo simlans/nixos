@@ -1,6 +1,6 @@
 {
   flake.modules.nixos.desktop = { config, lib, ... }: {
-    options.lansing.desktop.keyboardLayout = lib.mkOption {
+    options.host.desktop.keyboardLayout = lib.mkOption {
       type = lib.types.enum [ "ansi" "iso" ];
       default = "ansi";
       description = ''
@@ -12,7 +12,7 @@
       '';
     };
 
-    options.lansing.desktop.niriOutputs = lib.mkOption {
+    options.host.desktop.niriOutputs = lib.mkOption {
       type = lib.types.lines;
       default = "";
       description = ''
@@ -24,6 +24,6 @@
     };
 
     config.console.keyMap =
-      if config.lansing.desktop.keyboardLayout == "iso" then "de" else "us";
+      if config.host.desktop.keyboardLayout == "iso" then "de" else "us";
   };
 }

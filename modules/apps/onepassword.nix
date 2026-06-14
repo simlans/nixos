@@ -1,9 +1,11 @@
 {
-  flake.modules.nixos.desktop = {
+  flake.modules.nixos.desktop = { config, ... }: {
     programs._1password.enable = true;
     programs._1password-gui = {
       enable = true;
-      polkitPolicyOwners = [ "lansing" ];
+      # Every interactive user of the host gets 1Password polkit access — not a
+      # single hard-coded user. my.homeUsers is the host's full user list.
+      polkitPolicyOwners = config.my.homeUsers;
     };
 
     # Route SSH through 1Password's agent. pam_gnome_keyring.so otherwise
@@ -13,7 +15,7 @@
     # the GUI when "Use SSH agent" is enabled in 1Password → Developer.
     environment.sessionVariables.SSH_AUTH_SOCK = "$HOME/.1password/agent.sock";
 
-    lansing.desktop.niri.appWindowRules = [
+    host.desktop.niri.appWindowRules = [
       # Route every 1Password window to the passwords workspace. We
       # cannot distinguish the main vault from transient overlays
       # (SSH-agent auth, etc.) at niri's open-time rule evaluation:

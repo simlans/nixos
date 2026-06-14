@@ -3,7 +3,7 @@
   flake.modules.nixos.slack = { pkgs, ... }: {
     environment.systemPackages = [ pkgs.slack ];
 
-    lansing.desktop.niri.appWindowRules = [
+    host.desktop.niri.appWindowRules = [
       {
         match.app-id = "^Slack$";
         openOnWorkspace = "communication";

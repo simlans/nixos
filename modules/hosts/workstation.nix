@@ -34,12 +34,12 @@
         # already sets it, lib.mkDefault keeps overrides cheap.
         services.thermald.enable = lib.mkDefault true;
 
-        lansing.desktop.keyboardLayout = "ansi";
+        host.desktop.keyboardLayout = "ansi";
 
         # eDP-1 is the Framework 13 Pro internal panel (2.8K @ 120 Hz).
         # `niri msg outputs` post-install will report the exact mode
         # string; correct here if it differs.
-        lansing.desktop.niriOutputs = ''
+        host.desktop.niriOutputs = ''
           output "eDP-1" {
               mode "2880x1920@120.000"
               scale 1.5
@@ -48,7 +48,7 @@
 
         # Pin the comms workspace to the laptop panel so Slack/Vesktop
         # always land there even when an external monitor is plugged in.
-        lansing.desktop.niri.workspaceOutputs = {
+        host.desktop.niri.workspaceOutputs = {
           communication = "eDP-1";
         };
       })

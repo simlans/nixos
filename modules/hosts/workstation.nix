@@ -10,6 +10,7 @@
       gaming
       laptop
       slack
+      user-lansing
       ../../hosts/workstation/hardware-configuration.nix
       ../../disko/workstation.nix
       # Framework 13 Pro / Intel Core Ultra Series 3 (Panther Lake)

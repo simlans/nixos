@@ -70,7 +70,7 @@ tarball-ttl = 0" nix --refresh run \
 # Bootstrap the `lansing` account in one step: prompts for the login
 # password (via `nixos-enter -c 'passwd lansing'`) and the real name,
 # then writes the GECOS source to /mnt/etc/nixos/local/full-name. The
-# activation script `applyLocalFullName` in `modules/system/users.nix`
+# activation script `applyLocalFullName` in `modules/users/lansing.nix`
 # re-applies the realname via usermod on every rebuild — the file lives
 # outside the Nix store so it survives rebuilds without ever entering
 # git. The new system stays mounted at /mnt after disko-install exits,
@@ -147,7 +147,7 @@ nix flake check
 
 `/etc/nixos/local/full-name` is the single source of truth for the
 description column of `/etc/passwd`. Edit the file, then rebuild — the
-activation script in `modules/system/users.nix` picks up the new value
+activation script in `modules/users/lansing.nix` picks up the new value
 via `usermod` on the next switch:
 
 ```bash
@@ -191,7 +191,9 @@ modules/                                 # every .nix file in here is a flake-pa
   meta/                                  # flake plumbing: systems, bootstrap apps (perSystem), gitleaks pre-commit + devShell
   hosts/battlestation.nix                # nixosConfigurations.battlestation = base+desktop+development+gaming+obs-studio+sunshine + host data (ISO keyboard, DP-1 output, rocm)
   hosts/workstation.nix                  # nixosConfigurations.workstation  = base+desktop+development+gaming+laptop+slack + host data (ANSI keyboard, eDP-1 output)
-  users/lansing.nix                      # home-manager wiring + identity (each nixos bucket pulls its homeManager counterpart for lansing)
+  users/home-manager.nix                 # user-agnostic HM coupling: my.homeUsers + attaches homeManager.{base,desktop,development} to each registered user
+  users/home-base.nix                    # homeManager.base: shared home defaults (stateVersion, cursor, programs.home-manager)
+  users/lansing.nix                      # lansing user aspect: account + self-registers into my.homeUsers; homeManager.lansing = username/homeDirectory
   system/                                # → base: locale/nix settings, boot (lanzaboote), disko import, network, users, openssh, sops, tailscale
   desktop/                               # → desktop: niri (NixOS + config.kdl renderer), keyboard-layout options, fonts, audio, power,
                                          #   tools, keyring, alacritty (HM), noctalia (HM); laptop.nix → own `laptop` bucket (generic laptop
@@ -249,8 +251,9 @@ Once the system boots into Niri, finish the per-user bootstrap:
    The script SSHs to the target, derives its age recipient from
    `/etc/ssh/ssh_host_ed25519_key.pub`, inserts it into `.sops.yaml`, and
    runs `sops updatekeys secrets/personal.yaml`. SSH works because
-   `modules/system/openssh.nix` bakes lansing's pubkey into every machine
-   and the 1P SSH agent serves the matching private key. The script is
+   `modules/users/lansing.nix` bakes lansing's pubkey into every machine
+   that imports `user-lansing` (both do) and the 1P SSH agent serves the
+   matching private key. The script is
    idempotent — re-running with an already-onboarded `<flake-host>` is a
    no-op.
 

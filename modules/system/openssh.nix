@@ -7,9 +7,7 @@
         PermitRootLogin = "no";
       };
     };
-
-    users.users.lansing.openssh.authorizedKeys.keys = [
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFSIDoZWfx6cHP0Tp1xwi6cBnYopSd2YHbFugA7t32KN"
-    ];
+    # Per-user authorized keys live with the user aspect
+    # (modules/users/<name>.nix), not here — this file is the daemon only.
   };
 }
